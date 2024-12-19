@@ -1,1 +1,2 @@
 cloned_repos/  # Ignore the cloned repos directory
+utils/utils.py  # Ignore the utils.py file in the utils directory
