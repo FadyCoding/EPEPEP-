@@ -1,31 +1,36 @@
 import git
 from collections import defaultdict
+import os
+import json
+
 
 def analyze_commits(repo_dir):
     """
     Analyze commit activity for a given Git repository.
-    
+
     Parameters:
     - repo_dir (str): Path to the local Git repository.
     
     Returns:
-    - dict: A summary of commit activity.
+    - dict: A summary of commit activity including the repository name.
     """
     try:
         repo = git.Repo(repo_dir)
-        commits = list(repo.iter_commits('HEAD'))  # Fetch all commits
+        commits = list(repo.iter_commits('HEAD'))
         commit_summary = defaultdict(int)
         commit_dates = []
+        
+        repo_title = os.path.basename(repo_dir)
 
         for commit in commits:
             author = commit.author.name
             commit_summary[author] += 1
             commit_dates.append((author, commit.committed_datetime))
 
-        # Sort commits by date for chronological display
         commit_dates.sort(key=lambda x: x[1])
 
         return {
+            "repository": repo_title,
             "total_commits": len(commits),
             "commits_per_member": dict(commit_summary),
             "commit_dates": commit_dates
@@ -36,50 +41,51 @@ def analyze_commits(repo_dir):
         return {}
 
 
-def analyze_branches(repo_dir):
+def analyze_multiple_repos_from_json(json_file_path):
     """
-    Analyze branch activity for a given Git repository.
-    
+    Analyze commits for multiple repositories listed in a JSON file.
+
     Parameters:
-    - repo_dir (str): Path to the local Git repository.
+    - json_file_path (str): Path to the JSON file containing repository paths.
     
     Returns:
-    - dict: A summary of branch activity.
+    - list: A summary of commit activity for all repositories.
     """
     try:
-        repo = git.Repo(repo_dir)
-        branches = repo.branches
-        branch_summary = {}
+        with open(json_file_path, 'r') as file:
+            repo_data = json.load(file)
+        
+        repo_dirs = list(repo_data.values())
+        print(f"Found {len(repo_dirs)} repositories to analyze.")
 
-        for branch in branches:
-            branch_name = branch.name
-            branch_commits = list(repo.iter_commits(branch))
-            commits_per_member = defaultdict(int)
+        all_repo_analysis = []
 
-            for commit in branch_commits:
-                author = commit.author.name
-                commits_per_member[author] += 1
-
-            branch_summary[branch_name] = {
-                "total_commits": len(branch_commits),
-                "commits_per_member": dict(commits_per_member)
-            }
-
-        return branch_summary
+        for repo_dir in repo_dirs:
+            if os.path.exists(repo_dir) and os.path.isdir(repo_dir):
+                print(f"Analyzing repository: {repo_dir}")
+                analysis = analyze_commits(repo_dir)
+                if analysis:
+                    all_repo_analysis.append(analysis)
+            else:
+                print(f"Invalid repository path: {repo_dir}")
+        
+        return all_repo_analysis
 
     except Exception as e:
-        print(f"Error analyzing branches in '{repo_dir}': {e}")
-        return {}
+        print(f"Error reading JSON file or analyzing repositories: {e}")
+        return []
+
 
 if __name__ == "__main__":
-    # Example usage
-    repo_directory = "./cloned_repos/NBA_webApp"  # Change this path to analyze another repo
-    branch_data = analyze_branches(repo_directory)
+    # json_file_path = "data/cloned_repos.json"
+    json_file_path = "data/cloned_repos.json"
 
-    print("\nBranch Activity Analysis:")
-    for branch, stats in branch_data.items():
-        print(f"Branch: {branch}")
-        print(f"  Total commits: {stats['total_commits']}")
-        print(f"  Commits per team member:")
-        for author, count in stats["commits_per_member"].items():
+    print("Analyzing repositories listed in the JSON file...")
+    all_analysis = analyze_multiple_repos_from_json(json_file_path)
+
+    for repo_analysis in all_analysis:
+        print("\nRepository:", repo_analysis["repository"])
+        print("  Total Commits:", repo_analysis["total_commits"])
+        print("  Commits Per Member:")
+        for author, count in repo_analysis["commits_per_member"].items():
             print(f"    - {author}: {count} commits")

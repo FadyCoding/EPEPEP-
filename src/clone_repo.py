@@ -63,7 +63,7 @@ if __name__ == "__main__":
         "https://github.com/FadyCoding/Unity-Queue-System.git"
     ]
     base_directory = "./cloned_repos"
-    output_file = "data/cloned_repos.json"
+    output_file = "src/data/cloned_repos.json"
 
     print("Cloning repositories...")
     clone_repos(repositories, base_directory, output_file, max_threads=4)
