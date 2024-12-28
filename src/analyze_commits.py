@@ -78,7 +78,7 @@ def analyze_multiple_repos_from_json(json_file_path):
 
 if __name__ == "__main__":
     # json_file_path = "data/cloned_repos.json"
-    json_file_path = "data/cloned_repos.json"
+    json_file_path = "./data/cloned_repos.json"
 
     print("Analyzing repositories listed in the JSON file...")
     all_analysis = analyze_multiple_repos_from_json(json_file_path)

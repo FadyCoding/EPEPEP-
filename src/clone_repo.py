@@ -50,6 +50,10 @@ def save_cloned_repos(output_file, cloned_repos):
     Save cloned repositories to a JSON file.
     """
     try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        
+        # Save the data to the JSON file
         with open(output_file, 'w') as f:
             json.dump(cloned_repos, f, indent=4)
         print(f"Successfully saved cloned repository details to '{output_file}'.")
@@ -60,10 +64,11 @@ def save_cloned_repos(output_file, cloned_repos):
 if __name__ == "__main__":
     repositories = [
         "https://github.com/FadyCoding/NBA_webApp.git",
-        "https://github.com/FadyCoding/Unity-Queue-System.git"
+        "https://github.com/FadyCoding/Unity-Queue-System.git",
+        "https://github.com/debiai/DebiAI.git"
     ]
     base_directory = "./cloned_repos"
-    output_file = "data/cloned_repos.json"
+    output_file = "./data/cloned_repos.json"
 
     print("Cloning repositories...")
     clone_repos(repositories, base_directory, output_file, max_threads=4)
