@@ -5,10 +5,9 @@ from collections import defaultdict
 
 
 def analyze_total_loc(repo_path):
-    os.chdir(repo_path)
     loc_data = defaultdict(lambda: {"added": 0, "deleted": 0})
     result = subprocess.run(
-        ["git", "log", "--numstat", "--pretty=%H"], stdout=subprocess.PIPE, text=True
+        ["git", "log", "--numstat", "--pretty=%H", "-C", repo_path], stdout=subprocess.PIPE, text=True
     )
     lines = result.stdout.splitlines()
 
