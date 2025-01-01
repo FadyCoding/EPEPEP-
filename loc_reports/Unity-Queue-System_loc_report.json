@@ -1,0 +1,19 @@
+{
+    "Total LOC": {
+        "cc2957a530b14523b0203a03538741b004ffda32": {
+            "added": 8761,
+            "deleted": 0
+        },
+        "7\t0\tAssets/Scenes/SampleScene.unity.meta": {
+            "added": 725,
+            "deleted": 0
+        },
+        "295\t0\tProjectSettings/InputManager.asset": {
+            "added": 1464,
+            "deleted": 0
+        }
+    },
+    "Final LOC": {
+        "Fady's Coding": 89824
+    }
+}
