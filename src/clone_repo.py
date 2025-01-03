@@ -11,7 +11,7 @@ def clone_repo(repo_url, repo_dir):
     try:
         if os.path.exists(repo_dir):
             print(f"Directory '{repo_dir}' already exists. Skipping clone for '{repo_url}'.")
-            return False
+            return True
 
         git.Repo.clone_from(repo_url, repo_dir)
         print(f"Successfully cloned '{repo_url}' into '{repo_dir}'")
