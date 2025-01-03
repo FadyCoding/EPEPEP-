@@ -79,12 +79,18 @@ def analyze_contribution_per_root_folder(repo_path):
     )
     contributors = result.stdout.splitlines()
 
-    root_folder_contributions = {}
+    root_folder_contributions = (
+        {}
+    )  # Contributor -> Root Folder -> { Contrib. count, contrib. % }
+    total_root_folder_commits = defaultdict(int)  # Root Folder -> Total Commits count
+
+    # Process each contributor
     for contributor in contributors:
+
         # Get the contributor name
         contributor_name = contributor.split("\t")[-1].strip()
         contributor_name = contributor_name.split("<")[0].strip()
-        root_folder_contributions[contributor_name] = defaultdict(int)
+        root_folder_contributions[contributor_name] = {}
 
         # Get the contributor commits
         result = subprocess.run(
@@ -103,7 +109,7 @@ def analyze_contribution_per_root_folder(repo_path):
         )
         commits = result.stdout.splitlines()
 
-        # Get the modified files for each commit
+        # Process each commit
         for commit in commits:
             this_commit_root_folders = set()
             result = subprocess.run(
@@ -136,21 +142,43 @@ def analyze_contribution_per_root_folder(repo_path):
                 # Add the root folder to the set (so that we only count it once per commit)
                 this_commit_root_folders.add(root_folder)
 
-            # Add +1 to each root folder
+            # Add +1 to each root folder and update the total commits for that root folder
             for root_folder in this_commit_root_folders:
-                root_folder_contributions[contributor_name][root_folder] += 1
+                if root_folder not in root_folder_contributions[contributor_name]:
+                    root_folder_contributions[contributor_name][root_folder] = {
+                        "contributions": 0,
+                        "percentage": 0,
+                    }
+                root_folder_contributions[contributor_name][root_folder][
+                    "contributions"
+                ] += 1
+                total_root_folder_commits[root_folder] += 1
 
-        # Sort the root folders by contribution
+    # Calculate the percentage of contribution for each root folder
+    for contributor_name, folders in root_folder_contributions.items():
+        # Get the root folder contributions with percentage
+        for root_folder, contrib in folders.items():
+            total_commits = total_root_folder_commits[root_folder]
+            if total_commits > 0:
+                percentage_contribution = (
+                    contrib["contributions"] / total_commits
+                ) * 100
+            else:
+                percentage_contribution = 0
+
+            root_folder_contributions[contributor_name][root_folder][
+                "percentage"
+            ] = percentage_contribution
+
+    # Sort the root folders by contribution
+    for contributor_name, folders in root_folder_contributions.items():
         root_folder_contributions[contributor_name] = dict(
             sorted(
-                root_folder_contributions[contributor_name].items(),
-                key=lambda item: item[1],
+                folders.items(),
+                key=lambda item: item[1]["contributions"],
                 reverse=True,
             )
         )
-
-        print(f"Contributor: {contributor_name}")
-        print(f"Total LOC: {root_folder_contributions[contributor_name]}")
 
     return root_folder_contributions
 
