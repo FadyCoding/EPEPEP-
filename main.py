@@ -64,6 +64,9 @@ def main():
             print("  Commits Per Member:")
             for author, count in repo_analysis["commits_per_member"].items():
                 print(f"    - {author}: {count} commits")
+            print("  Branches:")
+            for branch in repo_analysis["branches"]:
+                print(f"    - {branch}")
     elif args.command == "loc":
         print("Starting LOC report generation...")
         

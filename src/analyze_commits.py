@@ -16,8 +16,6 @@ def analyze_commits(repo_dir):
     """
     try:
         repo = git.Repo(repo_dir)
-
-        # Get the repository title from the directory name
         repo_title = os.path.basename(repo_dir)
 
         # Count commits per author and store commit dates
@@ -31,10 +29,19 @@ def analyze_commits(repo_dir):
 
         commit_dates.sort(key=lambda x: x[1])
 
-        # Get the remote branches
+        # Fetch all branches (local and remote)
         repo.git.fetch("--all", "--prune")
-        branches = [ref.name.replace("origin/", "") for ref in repo.references]
-        # TODO: Not all branches are listed, only active branches, the goal is to list all branches
+        branches = []
+
+        branches.extend([ref.name for ref in repo.branches]) # Local branches
+
+        remote_branches = [ # Remote branches
+            ref.name.replace("origin/", "") for ref in repo.remote().refs
+        ]
+        branches.extend(remote_branches)
+
+        # Remove duplicates
+        branches = sorted(set(branches))
 
         return {
             "repository": repo_title,
@@ -85,8 +92,7 @@ def analyze_multiple_repos_from_json(json_file_path):
 
 
 if __name__ == "__main__":
-    # json_file_path = "data/cloned_repos.json"
-    json_file_path = "./data/cloned_repos.json"
+    json_file_path = "./my_repos_info.json"
 
     print("Analyzing repositories listed in the JSON file...")
     all_analysis = analyze_multiple_repos_from_json(json_file_path)
