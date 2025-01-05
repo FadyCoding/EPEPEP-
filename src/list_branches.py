@@ -11,7 +11,6 @@ def list_git_branches(repo_path):
     - branches (list): List of branch names.
     """
     try:
-        # Navigate to the repository and fetch all branches
         result = subprocess.run(
             ["git", "-C", repo_path, "branch", "-a"],
             stdout=subprocess.PIPE,
@@ -19,14 +18,12 @@ def list_git_branches(repo_path):
             text=True,
             check=True
         )
-        # Extract branch names from the output
         branches = [branch.strip() for branch in result.stdout.splitlines()]
         return branches
     except subprocess.CalledProcessError as e:
         print(f"Error listing branches: {e.stderr}")
         return []
 
-# Example usage
 if __name__ == "__main__":
     repo_path = "./my_repos/DebiAI"
     branches = list_git_branches(repo_path)
