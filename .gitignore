@@ -5,4 +5,4 @@ venv/
 my_repos/
 src/__pycache__/
 my_repos_info.json
-loc_reports/
+loc_reports/*
