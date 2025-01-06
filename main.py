@@ -43,6 +43,9 @@ def main():
     loc_parser.add_argument(
         "-o", "--output-dir", default="./loc_reports", help="Directory to save LOC reports."
     )
+    loc_parser.add_argument(
+        "-m", "--mapping-file", help="Optional JSON file containing account mapping."
+    )
     
     # Subcommand: List branches
     branches_parser = subparsers.add_parser("branches", help="List branches in a repository.")
@@ -71,11 +74,34 @@ def main():
         print("Starting LOC report generation...")
         
         # Load cloned repository paths
-        with open(args.json_file, 'r') as file:
-            repos = json.load(file)
-        
+        try:
+            with open(args.json_file, 'r') as file:
+                repos = json.load(file)
+        except Exception as e:
+            print(f"Error reading JSON file: {e}")
+            return
+
+        # Load account mapping if provided
+        account_mapping = {}
+        if args.mapping_file:
+            try:
+                with open(args.mapping_file, 'r') as file:
+                    account_mapping = json.load(file)
+            except Exception as e:
+                print(f"Error reading account mapping file: {e}")
+                return
+
+        # Ensure output directory exists
+        output_dir = os.path.abspath(args.output_dir)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
         # Generate reports
-        generate_report(repos, args.output_dir)
+        try:
+            generate_report(repos, account_mapping, output_dir=output_dir)
+            print("LOC reports generated successfully.")
+        except Exception as e:
+            print(f"Error generating LOC reports: {e}")
     elif args.command == "branches":
         print(f"Listing branches for repository at {args.repo_path}...")
         branches = list_git_branches(args.repo_path)
@@ -87,6 +113,7 @@ def main():
             print("No branches found or an error occurred.")
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()

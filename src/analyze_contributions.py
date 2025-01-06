@@ -199,7 +199,7 @@ def analyze_contribution_per_root_folder(repo_path):
 
 def merge_accounts(final_loc, account_mapping):
     merged_final_loc = defaultdict(lambda: {"lines": 0, "percentage": 0})
-    
+
     # Merge LOC values
     for account, data in final_loc.items():
         main_account = account_mapping.get(account, account)
@@ -227,7 +227,7 @@ def generate_report(repos, account_mapping=None, output_dir="."):
 
     if not os.path.exists(output_dir):
         raise FileNotFoundError(f"Output directory does not exist: {output_dir}")
-
+    
     for repo_url, repo_path in repos.items():
         print(f"Analyzing repository: {repo_url}")
 
@@ -277,12 +277,9 @@ if __name__ == "__main__":
         # Add more mappings if necessary
     }
 
-    # Specify the output directory
     output_directory = "./loc_reports"
 
-    # Ensure the directory exists (if needed)
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
-    # Generate reports
     generate_report(repos, account_mapping, output_dir=output_directory)
