@@ -43,6 +43,7 @@ def analyze_final_loc(repo_path):
     )
     files = result.stdout.splitlines()
 
+    # Collect the final LOC for each author
     final_loc = defaultdict(int)
     for file in files:
         blame_result = subprocess.run(
@@ -59,7 +60,20 @@ def analyze_final_loc(repo_path):
                 author = line.split(" ", 1)[1]
                 final_loc[author] += 1
 
-    return final_loc
+    # Calculate the total LOC across all authors
+    total_lines = sum(final_loc.values())
+
+    # Build the final LOC data structure with percentage
+    final_loc_with_percentage = {
+        author: {
+            "lines": loc,
+            "percentage": (loc / total_lines) * 100 if total_lines > 0 else 0
+        }
+        for author, loc in final_loc.items()
+    }
+
+    return final_loc_with_percentage
+
 
 
 def analyze_contribution_per_root_folder(repo_path):
@@ -184,10 +198,17 @@ def analyze_contribution_per_root_folder(repo_path):
 
 
 def merge_accounts(final_loc, account_mapping):
-    merged_final_loc = defaultdict(int)
-    for account, loc in final_loc.items():
+    merged_final_loc = defaultdict(lambda: {"lines": 0, "percentage": 0})
+    
+    # Merge LOC values
+    for account, data in final_loc.items():
         main_account = account_mapping.get(account, account)
-        merged_final_loc[main_account] += loc
+        merged_final_loc[main_account]["lines"] += data["lines"]
+
+    # Recalculate percentages after merging
+    total_lines = sum(data["lines"] for data in merged_final_loc.values())
+    for account, data in merged_final_loc.items():
+        data["percentage"] = (data["lines"] / total_lines * 100) if total_lines > 0 else 0
 
     return merged_final_loc
 
@@ -246,7 +267,7 @@ def generate_report(repos, account_mapping=None, output_dir="."):
 
 if __name__ == "__main__":
     # Load the JSON file containing cloned repos
-    with open("./data/cloned_repos.json", "r") as file:
+    with open("./my_repos_info.json", "r") as file:
         repos = json.load(file)
 
     # Optional account mapping
