@@ -10,18 +10,18 @@ def analyze_commits(repo_dir):
 
     Parameters:
     - repo_dir (str): Path to the local Git repository.
-    
+
     Returns:
     - dict: A summary of commit activity including the repository name.
     """
     try:
         repo = git.Repo(repo_dir)
-        commits = list(repo.iter_commits('HEAD'))
-        commit_summary = defaultdict(int)
-        commit_dates = []
-        
         repo_title = os.path.basename(repo_dir)
 
+        # Count commits per author and store commit dates
+        commits = list(repo.iter_commits("HEAD"))
+        commit_summary = defaultdict(int)
+        commit_dates = []
         for commit in commits:
             author = commit.author.name
             commit_summary[author] += 1
@@ -29,11 +29,26 @@ def analyze_commits(repo_dir):
 
         commit_dates.sort(key=lambda x: x[1])
 
+        # Fetch all branches (local and remote)
+        repo.git.fetch("--all", "--prune")
+        branches = []
+
+        branches.extend([ref.name for ref in repo.branches]) # Local branches
+
+        remote_branches = [ # Remote branches
+            ref.name.replace("origin/", "") for ref in repo.remote().refs
+        ]
+        branches.extend(remote_branches)
+
+        # Remove duplicates
+        branches = sorted(set(branches))
+
         return {
             "repository": repo_title,
             "total_commits": len(commits),
             "commits_per_member": dict(commit_summary),
-            "commit_dates": commit_dates
+            "commit_dates": commit_dates,
+            "branches": branches,
         }
 
     except Exception as e:
@@ -47,14 +62,14 @@ def analyze_multiple_repos_from_json(json_file_path):
 
     Parameters:
     - json_file_path (str): Path to the JSON file containing repository paths.
-    
+
     Returns:
     - list: A summary of commit activity for all repositories.
     """
     try:
-        with open(json_file_path, 'r') as file:
+        with open(json_file_path, "r") as file:
             repo_data = json.load(file)
-        
+
         repo_dirs = list(repo_data.values())
         print(f"Found {len(repo_dirs)} repositories to analyze.")
 
@@ -68,7 +83,7 @@ def analyze_multiple_repos_from_json(json_file_path):
                     all_repo_analysis.append(analysis)
             else:
                 print(f"Invalid repository path: {repo_dir}")
-        
+
         return all_repo_analysis
 
     except Exception as e:
@@ -77,8 +92,7 @@ def analyze_multiple_repos_from_json(json_file_path):
 
 
 if __name__ == "__main__":
-    # json_file_path = "data/cloned_repos.json"
-    json_file_path = "./data/cloned_repos.json"
+    json_file_path = "./my_repos_info.json"
 
     print("Analyzing repositories listed in the JSON file...")
     all_analysis = analyze_multiple_repos_from_json(json_file_path)
@@ -89,3 +103,6 @@ if __name__ == "__main__":
         print("  Commits Per Member:")
         for author, count in repo_analysis["commits_per_member"].items():
             print(f"    - {author}: {count} commits")
+        print("  Branches:")
+        for branch in repo_analysis["branches"]:
+            print(f"    - {branch}")
