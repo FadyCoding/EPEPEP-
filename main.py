@@ -2,7 +2,7 @@ import argparse
 from src.clone_repo import clone_repos
 from src.analyze_commits import analyze_multiple_repos_from_json
 from src.analyze_contributions import generate_report
-from src.list_branches import list_git_branches
+from src.branches_activity import display_branch_activity
 import os
 import json
 
@@ -42,11 +42,11 @@ def main():
     )
     loc_parser.add_argument(
         "-o", "--output-dir", default="./loc_reports", help="Directory to save LOC reports."
-    )
-    
-    # Subcommand: List branches
-    branches_parser = subparsers.add_parser("branches", help="List branches in a repository.")
-    branches_parser.add_argument(
+    ) 
+
+    #Subcommand: Average commits per branch
+    branches_activity_parser = subparsers.add_parser("branches", help="Display branch activity for a repository.")
+    branches_activity_parser.add_argument(
         "-b", "--repo-path", required=True, help="Path to the local repository to analyze."
     )
     
@@ -77,14 +77,8 @@ def main():
         # Generate reports
         generate_report(repos, args.output_dir)
     elif args.command == "branches":
-        print(f"Listing branches for repository at {args.repo_path}...")
-        branches = list_git_branches(args.repo_path)
-        if branches:
-            print("Branches:")
-            for branch in branches:
-                print(f"  - {branch}")
-        else:
-            print("No branches found or an error occurred.")
+        print(f"Displaying branch activity for repository at {args.repo_path}...")
+        display_branch_activity(args.repo_path)
     else:
         parser.print_help()
 

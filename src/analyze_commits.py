@@ -4,6 +4,55 @@ import os
 import json
 
 
+def fetch_branches(repo):
+    """
+    Fetch all branches (local and remote) for a repository.
+
+    Parameters:
+    - repo (git.Repo): The Git repository object.
+
+    Returns:
+    - list: A list of unique branch names.
+    """
+    try:
+        repo.git.fetch("--all", "--prune")
+        branches = [ref.name for ref in repo.branches]  # Local branches
+        branches.extend([ref.name for ref in repo.remote().refs])  # Remote branches
+
+        # Clean branch names and remove invalid entries
+        branches = [
+            branch for branch in sorted(set(branches))
+            if not branch.startswith("remotes/origin/HEAD")  # Skip HEAD references
+        ]
+        return branches
+    except Exception as e:
+        print(f"Error fetching branches: {e}")
+        return []
+
+
+def count_unique_commits_for_branches(repo, branches):
+    """
+    Count the total number of unique commits across all branches in a repository.
+
+    Parameters:
+    - repo (git.Repo): The Git repository object.
+    - branches (list): A list of branch names.
+
+    Returns:
+    - int: Total number of unique commits across all branches.
+    """
+    unique_commits = set()  # Use a set to store unique commit hashes
+
+    for branch in branches:
+        try:
+            branch_commits = repo.iter_commits(branch)
+            unique_commits.update(commit.hexsha for commit in branch_commits)
+        except Exception as e:
+            print(f"Skipping branch '{branch}' due to error: {e}")
+
+    return len(unique_commits)
+
+
 def analyze_commits(repo_dir):
     """
     Analyze commit activity for a given Git repository.
@@ -29,19 +78,7 @@ def analyze_commits(repo_dir):
 
         commit_dates.sort(key=lambda x: x[1])
 
-        # Fetch all branches (local and remote)
-        repo.git.fetch("--all", "--prune")
-        branches = []
-
-        branches.extend([ref.name for ref in repo.branches]) # Local branches
-
-        remote_branches = [ # Remote branches
-            ref.name.replace("origin/", "") for ref in repo.remote().refs
-        ]
-        branches.extend(remote_branches)
-
-        # Remove duplicates
-        branches = sorted(set(branches))
+        branches = fetch_branches(repo)
 
         return {
             "repository": repo_title,
@@ -54,6 +91,31 @@ def analyze_commits(repo_dir):
     except Exception as e:
         print(f"Error analyzing commits in '{repo_dir}': {e}")
         return {}
+
+
+def calculate_average_commits_per_branch(repo_dir):
+    """
+    Calculate the average number of commits per branch in a repository.
+
+    Parameters:
+    - repo_dir (str): Path to the local Git repository.
+
+    Returns:
+    - float: Average commits per branch.
+    """
+    try:
+        repo = git.Repo(repo_dir)
+        branches = fetch_branches(repo)
+
+        if not branches:
+            return 0
+
+        total_unique_commits = count_unique_commits_for_branches(repo, branches)
+        return total_unique_commits / len(branches)
+
+    except Exception as e:
+        print(f"Error calculating average commits for branches in '{repo_dir}': {e}")
+        return 0
 
 
 def analyze_multiple_repos_from_json(json_file_path):
