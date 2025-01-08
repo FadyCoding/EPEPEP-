@@ -91,11 +91,12 @@ def generate_contributor_report(repo_data: dict, contributor: str):
     report += "| Folder | Commits | Percent |\n"
     report += "|--------|-------|---------|\n"
     for folder, data in per_folder_data.items():
-        lines = data.get("contributions", "N/A")
+        commits = data.get("contributions", "N/A")
+        total_folder_commits = data.get("total_commits", "N/A")
         percent = data.get("percentage", None)
         # Round the percentage to two decimal places
         percent = f"{percent:.2f}" if percent is not None else "N/A"
-        report += f"| {folder} | {lines} | {percent}% |\n"
+        report += f"| {folder} | **{commits}** / {total_folder_commits} | {percent}% |\n"
     report += "\nThe folder percentage is calculated based on the total Commits of each contributor that has contributed to the said folder.\n"
 
     return report

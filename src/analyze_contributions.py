@@ -193,6 +193,9 @@ def analyze_contribution_per_root_folder(repo_path):
             root_folder_contributions[contributor_name][root_folder][
                 "percentage"
             ] = percentage_contribution
+            root_folder_contributions[contributor_name][root_folder][
+                "total_commits"
+            ] = total_commits
 
     # Sort the root folders by contribution
     for contributor_name, folders in root_folder_contributions.items():

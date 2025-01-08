@@ -29,6 +29,7 @@ python main.py markdown -j ./my_repos_info.json -l ./loc_reports -o ./markdown_r
 python main.py clone -h
 python main.py analyze -h
 python main.py loc -h
+python main.py markdown -h
 ```
 
 ----------------------------------------------------------------------------------------------------------------------
