@@ -1,4 +1,8 @@
-cloned_repos/  # Ignore the cloned repos directory
-utils/utils.py  # Ignore the utils.py file in the utils directory
-src/debug.py # Ignore the debug.py file in the src directory
+cloned_repos/  
+utils/utils.py  
+src/debug.py
 venv/
+my_repos/
+src/__pycache__/
+my_repos_info.json
+loc_reports/*
