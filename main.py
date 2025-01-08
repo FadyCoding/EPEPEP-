@@ -131,6 +131,9 @@ def main():
             print("LOC reports generated successfully.")
         except Exception as e:
             print(f"Error generating LOC reports: {e}")
+            # Print the full traceback
+            import traceback
+            traceback.print_exc()
     elif args.command == "markdown":
         print("Starting Markdown report generation...")
 

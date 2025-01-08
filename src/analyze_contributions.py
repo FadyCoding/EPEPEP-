@@ -74,7 +74,16 @@ def analyze_final_loc(repo_path):
         for author, loc in final_loc.items()
     }
 
-    return final_loc_with_percentage
+    # Sort final_loc by lines
+    final_loc_with_percentage = dict(
+        sorted(
+            final_loc_with_percentage.items(),
+            key=lambda item: item[1]["lines"],
+            reverse=True,
+        )
+    )
+
+    return {"total": total_lines, "data": final_loc_with_percentage}
 
 
 def analyze_contribution_per_root_folder(repo_path):
@@ -244,15 +253,6 @@ def generate_report(repos, account_mapping=None, output_dir="."):
         # Merge accounts if mapping is provided
         if account_mapping:
             final_loc = merge_accounts(final_loc, account_mapping)
-
-        # Sort final_loc by lines
-        final_loc = dict(
-            sorted(
-                final_loc.items(),
-                key=lambda item: item[1]["lines"],
-                reverse=True,
-            )
-        )
 
         # Prepare report data
         report = {
