@@ -20,6 +20,7 @@ pip install -r requirements.txt
 python main.py clone -r https://github.com/project/project1.git -d ./directory_to_clone_the_repo  -o ./my_repos_info.json
 python main.py analyze -j ./my_repos_info.json
 python main.py loc -j ./my_repos_info.json -o ./loc_reports
+python main.py markdown -j ./my_repos_info.json -l ./loc_reports -o ./markdown_reports
 ```
 
 *Run the helper:*

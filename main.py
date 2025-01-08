@@ -3,6 +3,7 @@ from src.clone_repo import clone_repos
 from src.analyze_commits import analyze_multiple_repos_from_json
 from src.analyze_contributions import generate_report
 from src.list_branches import list_git_branches
+from src.generate_md_report import generate_md_report
 import os
 import json
 
@@ -53,8 +54,25 @@ def main():
         "-b", "--repo-path", required=True, help="Path to the local repository to analyze."
     )
     
+    # Subcommand: Generate markdown report
+    markdown_parser = subparsers.add_parser("markdown", help="Generate markdown report.")
+    markdown_parser.add_argument(
+        "-j", "--json-file", required=True, help="Path to the JSON file containing repository paths."
+    )
+    markdown_parser.add_argument(
+        "-l", "--loc-dir", default="./loc_reports", help="Directory containing LOC reports."
+    )
+    markdown_parser.add_argument(
+        "-o", "--output-dir", default="./markdown_reports", help="Directory to save markdown reports."
+    )
+    markdown_parser.add_argument(
+        "-m", "--mapping-file", help="Optional JSON file containing account mapping."
+    )
+
+    # Read user command and arguments
     args = parser.parse_args()   
     
+    # Execute the selected command
     if args.command == "clone":
         print("Starting repository cloning...")
         clone_repos(args.repo_list, args.base_dir, args.output_file, args.threads)
@@ -111,8 +129,12 @@ def main():
                 print(f"  - {branch}")
         else:
             print("No branches found or an error occurred.")
+    elif args.command == "markdown":
+        generate_md_report(args.json_file, args.loc_dir, args.output_dir, args.mapping_file)
     else:
         parser.print_help()
+
+
 
 
 if __name__ == "__main__":
