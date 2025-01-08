@@ -5,12 +5,13 @@ from collections import defaultdict
 
 
 def analyze_total_loc(repo_path):
+    print("Analyzing total LOC...")
+    total_loc = {"added": 0, "deleted": 0, "total": 0}
     loc_data = defaultdict(lambda: {"added": 0, "deleted": 0})
-    result = subprocess.run(
-        ["git", "log", "--numstat", "--pretty=%H", "-C", repo_path],
-        stdout=subprocess.PIPE,
-        text=True,
-    )
+
+    git_dir = os.path.join(repo_path, ".git")
+    command = ["git", "--git-dir", git_dir, "log", "--numstat", "--pretty=%H"]
+    result = subprocess.run(command, stdout=subprocess.PIPE, text=True)
     lines = result.stdout.splitlines()
 
     current_commit = None
@@ -19,17 +20,18 @@ def analyze_total_loc(repo_path):
             current_commit = line
         elif "\t" in line and current_commit:
             added, deleted, _ = line.split("\t")
+            added = int(added) if added.isdigit() else 0
+            deleted = int(deleted) if deleted.isdigit() else 0
             try:
-                loc_data[current_commit]["added"] += (
-                    int(added) if added.isdigit() else 0
-                )
-                loc_data[current_commit]["deleted"] += (
-                    int(deleted) if deleted.isdigit() else 0
-                )
+                loc_data[current_commit]["added"] += added
+                loc_data[current_commit]["deleted"] += deleted
+                total_loc["added"] += added
+                total_loc["deleted"] += deleted
+                total_loc["total"] += added - deleted
             except ValueError:
                 print(f"Skipping binary file entry in commit {current_commit}: {line}")
 
-    return loc_data
+    return {"total": total_loc, "data": loc_data}
 
 
 def analyze_final_loc(repo_path):
@@ -67,13 +69,12 @@ def analyze_final_loc(repo_path):
     final_loc_with_percentage = {
         author: {
             "lines": loc,
-            "percentage": (loc / total_lines) * 100 if total_lines > 0 else 0
+            "percentage": (loc / total_lines) * 100 if total_lines > 0 else 0,
         }
         for author, loc in final_loc.items()
     }
 
     return final_loc_with_percentage
-
 
 
 def analyze_contribution_per_root_folder(repo_path):
@@ -208,7 +209,9 @@ def merge_accounts(final_loc, account_mapping):
     # Recalculate percentages after merging
     total_lines = sum(data["lines"] for data in merged_final_loc.values())
     for account, data in merged_final_loc.items():
-        data["percentage"] = (data["lines"] / total_lines * 100) if total_lines > 0 else 0
+        data["percentage"] = (
+            (data["lines"] / total_lines * 100) if total_lines > 0 else 0
+        )
 
     return merged_final_loc
 
@@ -227,7 +230,7 @@ def generate_report(repos, account_mapping=None, output_dir="."):
 
     if not os.path.exists(output_dir):
         raise FileNotFoundError(f"Output directory does not exist: {output_dir}")
-    
+
     for repo_url, repo_path in repos.items():
         print(f"Analyzing repository: {repo_url}")
 
@@ -241,6 +244,15 @@ def generate_report(repos, account_mapping=None, output_dir="."):
         # Merge accounts if mapping is provided
         if account_mapping:
             final_loc = merge_accounts(final_loc, account_mapping)
+
+        # Sort final_loc by lines
+        final_loc = dict(
+            sorted(
+                final_loc.items(),
+                key=lambda item: item[1]["lines"],
+                reverse=True,
+            )
+        )
 
         # Prepare report data
         report = {

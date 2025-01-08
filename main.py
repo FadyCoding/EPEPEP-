@@ -2,7 +2,6 @@ import argparse
 from src.clone_repo import clone_repos
 from src.analyze_commits import analyze_multiple_repos_from_json
 from src.analyze_contributions import generate_report
-from src.list_branches import list_git_branches
 from src.generate_md_report import generate_md_report
 import os
 import json
@@ -35,6 +34,9 @@ def main():
     analyze_parser.add_argument(
         "-j", "--json-file", required=True, help="Path to the JSON file containing repository paths."
     )
+    analyze_parser.add_argument(
+        "-o", "--output-dir", default="./commits_reports", help="Directory to save commits reports."
+    )
     
     # Subcommand: Generate LOC reports
     loc_parser = subparsers.add_parser("loc", help="Generate LOC reports for repositories.")
@@ -63,6 +65,9 @@ def main():
         "-l", "--loc-dir", default="./loc_reports", help="Directory containing LOC reports."
     )
     markdown_parser.add_argument(
+        "-c", "--commits-dir", default="./commits_reports", help="Directory containing commits reports."
+    )
+    markdown_parser.add_argument(
         "-o", "--output-dir", default="./markdown_reports", help="Directory to save markdown reports."
     )
     markdown_parser.add_argument(
@@ -78,7 +83,7 @@ def main():
         clone_repos(args.repo_list, args.base_dir, args.output_file, args.threads)
     elif args.command == "analyze":
         print("Starting commit analysis...")
-        analysis = analyze_multiple_repos_from_json(args.json_file)
+        analysis = analyze_multiple_repos_from_json(args.json_file, args.output_dir)
         for repo_analysis in analysis:
             print("\nRepository:", repo_analysis["repository"])
             print("  Total Commits:", repo_analysis["total_commits"])
@@ -126,17 +131,71 @@ def main():
             print("LOC reports generated successfully.")
         except Exception as e:
             print(f"Error generating LOC reports: {e}")
-    elif args.command == "branches":
-        print(f"Listing branches for repository at {args.repo_path}...")
-        branches = list_git_branches(args.repo_path)
-        if branches:
-            print("Branches:")
-            for branch in branches:
-                print(f"  - {branch}")
-        else:
-            print("No branches found or an error occurred.")
     elif args.command == "markdown":
-        generate_md_report(args.json_file, args.loc_dir, args.output_dir, args.mapping_file)
+        print("Starting Markdown report generation...")
+
+        # Load cloned repository paths
+        try:
+            with open(args.json_file, 'r') as file:
+                repos = json.load(file)
+        except Exception as e:
+            print(f"Error reading JSON file: {e}")
+            return
+
+        # Load account mapping if provided
+        account_mapping = {}
+        if args.mapping_file:
+            try:
+                with open(args.mapping_file, 'r') as file:
+                    account_mapping = json.load(file)
+            except Exception as e:
+                print(f"Error reading account mapping file: {e}")
+                return
+            
+        # Check commits reports parameter
+        commits_dir = os.path.abspath(args.commits_dir)
+        if not os.path.exists(commits_dir):
+            print(f"Commits directory does not exist: {commits_dir}")
+            return
+
+        # Check LOC reports parameter
+        loc_dir = os.path.abspath(args.loc_dir)
+        if not os.path.exists(loc_dir):
+            print(f"LOC directory does not exist: {loc_dir}")
+            return
+        
+        repository_data = []
+        for repo_url, repo_path in repos.items():
+            repo_name = repo_url.split("/")[-1].replace(".git", "")
+            repo_data = {}
+            # Load repository commits data
+            commits_file_path = os.path.join(commits_dir, f"{repo_name}_report.json")
+            if not os.path.exists(commits_file_path):
+                print(f"Commits report '{commits_file_path}' not found for {repo_name}")
+                continue
+            try:
+                with open(commits_file_path, 'r') as file:
+                    repo_data = json.load(file)
+            except Exception as e:
+                print(f"Error reading commits data: {e}")
+                continue
+
+            # Load repository LOC data
+            loc_file_path = os.path.join(loc_dir, f"{repo_name}_loc_report.json")
+            if not os.path.exists(loc_file_path):
+                print(f"LOC report '{loc_file_path}' not found for {repo_name}")
+                continue
+            try:
+                with open(loc_file_path, 'r') as file:
+                    loc_data = json.load(file)
+                    repo_data["loc_data"] = loc_data
+            except Exception as e:
+                print(f"Error reading LOC data: {e}")
+                continue
+            
+            repository_data.append(repo_data)
+
+        generate_md_report(repository_data, account_mapping, args.output_dir)
     else:
         parser.print_help()
 
