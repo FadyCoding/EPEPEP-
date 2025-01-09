@@ -1,0 +1,20 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [
+      "EPEPEP",
+      "Fady",
+      "Tomansion",
+      "successsful",
+      "flake8"
+    ],
+    "ignorePaths": [
+      "commits_reports/",
+      "loc_reports/",
+      "markdown_reports/",
+      "node_modules/",
+      ".git/**"
+
+    ]
+  }
+  

@@ -11,73 +11,94 @@ def main():
     parser = argparse.ArgumentParser(
         description="EPEPEP: Github Analysis tool platform."
     )
-    
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
+
+    subparsers = parser.add_subparsers(dest="command",
+                                       help="Available commands")
+
     # Subcommand: Clone repositories
-    clone_parser = subparsers.add_parser("clone", help="Clone GitHub repositories.")
+    clone_parser = subparsers.add_parser("clone",
+                                         help="Clone GitHub repositories.")
     clone_parser.add_argument(
-        "-r", "--repo-list", nargs="+", required=True, help="List of repository URLs to clone."
+        "-r", "--repo-list", nargs="+", required=True, 
+        help="List of repository URLs to clone."
     )
     clone_parser.add_argument(
-        "-d", "--base-dir", default="./cloned_repos", help="Base directory to clone repositories into."
+        "-d", "--base-dir", default="./cloned_repos", 
+        help="Base directory to clone repositories into."
     )
     clone_parser.add_argument(
-        "-o", "--output-file", default="./data/cloned_repos.json", help="Output JSON file for cloned repository details."
+        "-o", "--output-file", default="./data/cloned_repos.json",
+        help="Output JSON file for cloned repository details."
     )
     clone_parser.add_argument(
-        "-t", "--threads", type=int, default=4, help="Number of threads to use for cloning."
+        "-t", "--threads", type=int, default=4,
+        help="Number of threads to use for cloning."
     )
-    
+
     # Subcommand: Analyze commits
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze commit activity.")
+    analyze_parser = subparsers.add_parser("analyze", 
+                                           help="Analyze commit activity.")
     analyze_parser.add_argument(
-        "-j", "--json-file", required=True, help="Path to the JSON file containing repository paths."
+        "-j", "--json-file", required=True, 
+        help="Path to the JSON file containing repository paths."
     )
     analyze_parser.add_argument(
-        "-o", "--output-dir", default="./commits_reports", help="Directory to save commits reports."
+        "-o", "--output-dir", default="./commits_reports",
+        help="Directory to save commits reports."
     )
-    
+
     # Subcommand: Generate LOC reports
-    loc_parser = subparsers.add_parser("loc", help="Generate LOC reports for repositories.")
+    loc_parser = subparsers.add_parser(
+        "loc", help="Generate LOC reports for repositories.")
     loc_parser.add_argument(
-        "-j", "--json-file", required=True, help="Path to the JSON file containing repository paths."
+        "-j", "--json-file", required=True, 
+        help="Path to the JSON file containing repository paths."
     )
     loc_parser.add_argument(
-        "-o", "--output-dir", default="./loc_reports", help="Directory to save LOC reports."
+        "-o", "--output-dir", default="./loc_reports", 
+        help="Directory to save LOC reports."
     )
     loc_parser.add_argument(
-        "-m", "--mapping-file", help="Optional JSON file containing account mapping."
+        "-m", "--mapping-file", 
+        help="Optional JSON file containing account mapping."
     )
-    
+
     # Subcommand: Generate markdown report
-    markdown_parser = subparsers.add_parser("markdown", help="Generate markdown report.")
+    markdown_parser = subparsers.add_parser("markdown",
+                                            help="Generate markdown report.")
     markdown_parser.add_argument(
-        "-j", "--json-file", required=True, help="Path to the JSON file containing repository paths."
+        "-j", "--json-file", required=True, 
+        help="Path to the JSON file containing repository paths."
     )
     markdown_parser.add_argument(
-        "-l", "--loc-dir", default="./loc_reports", help="Directory containing LOC reports."
+        "-l", "--loc-dir", default="./loc_reports",
+        help="Directory containing LOC reports."
     )
     markdown_parser.add_argument(
-        "-c", "--commits-dir", default="./commits_reports", help="Directory containing commits reports."
+        "-c", "--commits-dir", default="./commits_reports",
+        help="Directory containing commits reports."
     )
     markdown_parser.add_argument(
-        "-o", "--output-dir", default="./markdown_reports", help="Directory to save markdown reports."
+        "-o", "--output-dir", default="./markdown_reports",
+        help="Directory to save markdown reports."
     )
     markdown_parser.add_argument(
-        "-m", "--mapping-file", help="Optional JSON file containing account mapping."
+        "-m", "--mapping-file",
+        help="Optional JSON file containing account mapping."
     )
 
     # Read user command and arguments
-    args = parser.parse_args()   
-    
+    args = parser.parse_args()
+
     # Execute the selected command
     if args.command == "clone":
         print("Starting repository cloning...")
-        clone_repos(args.repo_list, args.base_dir, args.output_file, args.threads)
+        clone_repos(args.repo_list, args.base_dir,
+                    args.output_file, args.threads)
     elif args.command == "analyze":
         print("Starting commit analysis...")
-        analysis = analyze_multiple_repos_from_json(args.json_file, args.output_dir)
+        analysis = analyze_multiple_repos_from_json(args.json_file,
+                                                    args.output_dir)
         for repo_analysis in analysis:
             print("\nRepository:", repo_analysis["repository"])
             print("  Total Commits:", repo_analysis["total_commits"])
@@ -87,15 +108,16 @@ def main():
             print("  Branches:")  
             for branch in repo_analysis["branches_commit_counts"]:
                 print(f"    - {branch}")
-            print("  Average Commits Per Branch", repo_analysis["avg_commits_per_branch"])
+            print("  Average Commits Per Branch",
+                  repo_analysis["avg_commits"])
             print("  Commits Per Member Per Branch:")
-            for branch, members in repo_analysis["member_commits_by_branch"].items():
+            for branch, members in repo_analysis["TM_commits_by_branch"].items():
                 print(f"    - Branch: {branch}")
                 for member, count in members.items():
                     print(f"        {member:<30} Commits: {count}")
     elif args.command == "loc":
         print("Starting LOC report generation...")
-        
+
         # Load cloned repository paths
         try:
             with open(args.json_file, 'r') as file:
@@ -148,7 +170,7 @@ def main():
             except Exception as e:
                 print(f"Error reading account mapping file: {e}")
                 return
-            
+
         # Check commits reports parameter
         commits_dir = os.path.abspath(args.commits_dir)
         if not os.path.exists(commits_dir):
@@ -160,13 +182,14 @@ def main():
         if not os.path.exists(loc_dir):
             print(f"LOC directory does not exist: {loc_dir}")
             return
-        
+
         repository_data = []
         for repo_url, repo_path in repos.items():
             repo_name = repo_url.split("/")[-1].replace(".git", "")
             repo_data = {}
             # Load repository commits data
-            commits_file_path = os.path.join(commits_dir, f"{repo_name}_report.json")
+            commits_file_path = os.path.join(commits_dir,
+                                             f"{repo_name}_report.json")
             if not os.path.exists(commits_file_path):
                 print(f"Commits report '{commits_file_path}' not found for {repo_name}")
                 continue
@@ -178,7 +201,8 @@ def main():
                 continue
 
             # Load repository LOC data
-            loc_file_path = os.path.join(loc_dir, f"{repo_name}_loc_report.json")
+            loc_file_path = os.path.join(loc_dir, 
+                                         f"{repo_name}_loc_report.json")
             if not os.path.exists(loc_file_path):
                 print(f"LOC report '{loc_file_path}' not found for {repo_name}")
                 continue
@@ -189,14 +213,12 @@ def main():
             except Exception as e:
                 print(f"Error reading LOC data: {e}")
                 continue
-            
+
             repository_data.append(repo_data)
 
         generate_md_report(repository_data, account_mapping, args.output_dir)
     else:
         parser.print_help()
-
-
 
 
 if __name__ == "__main__":
