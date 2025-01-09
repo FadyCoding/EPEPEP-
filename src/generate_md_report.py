@@ -77,7 +77,7 @@ def generate_report(repo_data: dict):
         # Sort the huge commits by lines added
         huge_commits.sort(key=lambda x: x["lines_added"], reverse=True)
 
-        report += "## Huge Commits\n"
+        report += "## Huge Commits (3000+ lines added)\n"
         report += "| Commit | Contributor | Message | Lines Added | Lines Deleted |\n"
         report += "|--------|-------------|---------| ------------|---------------|\n"
         for commit in huge_commits:
