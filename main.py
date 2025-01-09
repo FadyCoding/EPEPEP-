@@ -50,12 +50,6 @@ def main():
         "-m", "--mapping-file", help="Optional JSON file containing account mapping."
     )
     
-    # Subcommand: List branches
-    branches_parser = subparsers.add_parser("branches", help="List branches in a repository.")
-    branches_parser.add_argument(
-        "-b", "--repo-path", required=True, help="Path to the local repository to analyze."
-    )
-    
     # Subcommand: Generate markdown report
     markdown_parser = subparsers.add_parser("markdown", help="Generate markdown report.")
     markdown_parser.add_argument(
