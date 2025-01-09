@@ -168,6 +168,10 @@ def get_commit_per_member(repo):
         author = commit.author.name
         # TODO: mapping
 
+        # Ignore merge commits
+        if len(commit.parents) > 1 or "merge" in commit.message.lower():
+            continue
+        
         if author not in members_commits:
             members_commits[author] = []  # Commits
 
