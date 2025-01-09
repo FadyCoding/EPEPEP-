@@ -164,7 +164,7 @@ def analyze_commits(repo_dir):
         for commit in commits:
             author = commit.author.name
             commit_summary[author] += 1
-            commit_dates.append((author, commit.committed_datetime))
+            commit_dates.append((author, str(commit.committed_datetime)))
 
         commit_dates.sort(key=lambda x: x[1])
 
@@ -183,6 +183,7 @@ def analyze_commits(repo_dir):
 
         return {
             "repository": repo_title,
+            "repository_url": repo.remotes.origin.url,
             "total_commits": len(commits),
             "total_unique_commits": total_unique_commits,
             "avg_commits_per_branch": avg_commits_per_branch,
@@ -197,17 +198,23 @@ def analyze_commits(repo_dir):
         return {}
 
 
-def analyze_multiple_repos_from_json(json_file_path):
+def analyze_multiple_repos_from_json(json_file_path: str, output_dir: str = None):
     """
     Analyze commits for multiple repositories listed in a JSON file.
 
     Parameters:
     - json_file_path (str): Path to the JSON file containing repository paths.
+    - output_dir (str): Optional directory to save analysis results.
 
     Returns:
     - list: A summary of commit activity for all repositories.
     """
     try:
+        # Create the output directory if it doesn't exist
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Load repository paths from the JSON file
         with open(json_file_path, "r") as file:
             repo_data = json.load(file)
 
@@ -224,6 +231,12 @@ def analyze_multiple_repos_from_json(json_file_path):
                     all_repo_analysis.append(analysis)
             else:
                 print(f"Invalid repository path: {repo_dir}")
+            
+            # Save analysis results to output directory
+            if output_dir:
+                output_file = os.path.join(output_dir, f"{os.path.basename(repo_dir)}_report.json")
+                with open(output_file, "w") as f:
+                    json.dump(analysis, f, indent=2)
 
         return all_repo_analysis
 
