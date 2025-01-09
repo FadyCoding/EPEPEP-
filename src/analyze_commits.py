@@ -16,13 +16,16 @@ def fetch_branches(repo):
     """
     try:
         repo.git.fetch("--all", "--prune")
-        branches = [ref.name for ref in repo.branches]  # Local branches
-        branches.extend([ref.name for ref in repo.remote().refs])  # Remote branches
+        # Local branches
+        branches = [ref.name for ref in repo.branches]
+        # Remote branches
+        branches.extend([ref.name for ref in repo.remote().refs])
 
         # Clean branch names and remove invalid entries
         branches = [
             branch.replace("remotes/origin/", "origin/") for branch in sorted(set(branches))
-            if not branch.startswith("remotes/origin/HEAD")  # Skip HEAD references
+            # Skip HEAD references
+            if not branch.startswith("remotes/origin/HEAD")
         ]
         return branches
     except Exception as e:
@@ -30,9 +33,10 @@ def fetch_branches(repo):
         return []
 
 
-def count_unique_commits_across_branches(repo, branches):
+def count_unique_commits(repo, branches):
     """
-    Count the total number of unique commits across all branches in a repository.
+    Count the total number of unique commits
+    across all branches in a repository.
 
     Parameters:
     - repo (git.Repo): The Git repository object.
@@ -100,11 +104,11 @@ def calculate_average_commits_per_branch(repo_dir):
         ]
 
         if not filtered_branches:
-            print("No branches to include in the average calculation after filtering.")
+            print("No branches left for average calculation after filtering.")
             return 0
 
         # Count unique commits across the filtered branches
-        total_unique_commits = count_unique_commits_across_branches(repo, filtered_branches)
+        total_unique_commits = count_unique_commits(repo, filtered_branches)
 
         # Calculate and return the average
         return total_unique_commits // len(filtered_branches)
@@ -123,10 +127,11 @@ def count_commits_per_member_per_branch(repo, branches):
     - branches (list): A list of branch names.
 
     Returns:
-    - dict: A nested dictionary where keys are branch names, and values are dictionaries
-            with team members as keys and their commit counts as values.
+    - dict: A nested dictionary where keys are branch names, and values
+      are dictionaries with team members as keys and their
+      commit counts as values.
     """
-    member_commits_by_branch = {}
+    TM_commits_by_branch = {}
 
     for branch in branches:
         try:
@@ -136,12 +141,12 @@ def count_commits_per_member_per_branch(repo, branches):
                 author = commit.author.name
                 branch_commits[author] += 1
 
-            member_commits_by_branch[branch] = dict(branch_commits)
+            TM_commits_by_branch[branch] = dict(branch_commits)
 
         except Exception as e:
             print(f"Skipping branch '{branch}' due to error: {e}")
 
-    return member_commits_by_branch
+    return TM_commits_by_branch
 
 
 def analyze_commits(repo_dir):
@@ -170,27 +175,27 @@ def analyze_commits(repo_dir):
 
         branches = fetch_branches(repo)
         branch_commit_counts = count_commits_per_branch(repo, branches)
-        member_commits_by_branch = count_commits_per_member_per_branch(repo, branches)
+        TM_commits_by_branch = count_commits_per_member_per_branch(repo, branches)
 
-        total_unique_commits = count_unique_commits_across_branches(repo, branches)
+        total_unique_commits = count_unique_commits(repo, branches)
 
         excluded_branches = {"main", "master", "dev", "develop"}
         filtered_branches = [
             branch for branch in branches
             if branch.replace("origin/", "") not in excluded_branches
         ]
-        avg_commits_per_branch = total_unique_commits // len(filtered_branches) if filtered_branches else 0
+        avg_commits = total_unique_commits // len(filtered_branches) if filtered_branches else 0
 
         return {
             "repository": repo_title,
             "repository_url": repo.remotes.origin.url,
             "total_commits": len(commits),
             "total_unique_commits": total_unique_commits,
-            "avg_commits_per_branch": avg_commits_per_branch,
+            "avg_commits": avg_commits,
             "commits_per_member": dict(commit_summary),
             "commit_dates": commit_dates,
             "branches_commit_counts": branch_commit_counts,
-            "member_commits_by_branch": member_commits_by_branch,
+            "TM_commits_by_branch": TM_commits_by_branch,
         }
 
     except Exception as e:
@@ -231,7 +236,7 @@ def analyze_multiple_repos_from_json(json_file_path: str, output_dir: str = None
                     all_repo_analysis.append(analysis)
             else:
                 print(f"Invalid repository path: {repo_dir}")
-            
+
             # Save analysis results to output directory
             if output_dir:
                 output_file = os.path.join(output_dir, f"{os.path.basename(repo_dir)}_report.json")
@@ -263,10 +268,9 @@ if __name__ == "__main__":
             print(f"    - {branch:<40} Commits: {commit_count}")
 
         print("  Commits Per Member Per Branch:")
-        for branch, members in repo_analysis["member_commits_by_branch"].items():
+        for branch, members in repo_analysis["TM_commits_by_branch"].items():
             print(f"    - Branch: {branch}")
             for member, count in members.items():
                 print(f"        {member:<30} Commits: {count}")
 
-        print("  Average Commits Per Branch:", repo_analysis["avg_commits_per_branch"])
-
+        print("  Average Commits Per Branch:", repo_analysis["avg_commits"])
