@@ -8,3 +8,6 @@ my_repos_info.json
 loc_reports/*
 commits_reports/*
 markdown_reports/*
+branches.txt
+commit_messages.txt
+node_modules/*
