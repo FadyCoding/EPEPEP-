@@ -145,8 +145,48 @@ def count_commits_per_member_per_branch(repo, branches):
 
         except Exception as e:
             print(f"Skipping branch '{branch}' due to error: {e}")
+    
+    # Sort the list by number of commits
+    for branch in TM_commits_by_branch:
+        TM_commits_by_branch[branch] = dict(sorted(TM_commits_by_branch[branch].items(),
+                                                   key=lambda x: x[1], reverse=True))
 
     return TM_commits_by_branch
+
+
+def get_commit_per_member(repo):
+    """
+    Save for each member their commits, the number of lines added and the number of lines deleted,
+    the date, the lines of the commit and the commit message.
+
+    Return the list sorted by number of lines added.
+    """
+
+    members_commits = {}
+    origin = repo.remotes.origin.url.split(".git")[0]
+    for commit in repo.iter_commits("HEAD"):
+        author = commit.author.name
+        # TODO: mapping
+
+        if author not in members_commits:
+            members_commits[author] = []  # Commits
+
+        diff_stats = commit.stats
+        members_commits[author].append({
+            "commit": commit.hexsha,
+            "date": str(commit.committed_datetime),
+            "lines_added": diff_stats.total['insertions'],
+            "lines_deleted": diff_stats.total['deletions'],
+            "lines": diff_stats.total['lines'],
+            "message": commit.message,
+            "link": f"{origin}/commit/{commit.hexsha}"
+        })
+
+    # Sort the list by number of lines added
+    for member in members_commits:
+        members_commits[member].sort(key=lambda x: x["lines_added"], reverse=True)
+
+    return members_commits
 
 
 def analyze_commits(repo_dir):
@@ -176,6 +216,7 @@ def analyze_commits(repo_dir):
         branches = fetch_branches(repo)
         branch_commit_counts = count_commits_per_branch(repo, branches)
         TM_commits_by_branch = count_commits_per_member_per_branch(repo, branches)
+        members_commits = get_commit_per_member(repo)
 
         total_unique_commits = count_unique_commits(repo, branches)
 
@@ -196,6 +237,7 @@ def analyze_commits(repo_dir):
             "commit_dates": commit_dates,
             "branches_commit_counts": branch_commit_counts,
             "TM_commits_by_branch": TM_commits_by_branch,
+            "members_commits": members_commits
         }
 
     except Exception as e:

@@ -115,6 +115,11 @@ def main():
                 print(f"    - Branch: {branch}")
                 for member, count in members.items():
                     print(f"        {member:<30} Commits: {count}")
+            print("  Biggest 3 commits for each member:")
+            for member in repo_analysis["members_commits"]:
+                print(f"    - {member}")
+                for commit in repo_analysis["members_commits"][member][:3]:
+                    print(f"        {commit['commit']}: +{commit['lines_added']} -{commit['lines_deleted']}")
     elif args.command == "loc":
         print("Starting LOC report generation...")
 
