@@ -156,22 +156,32 @@ def count_commits_per_member_per_branch(repo, branches):
 
 def get_commit_per_member(repo):
     """
-    Save for each member their commits, the number of lines added and the number of lines deleted,
-    the date, the lines of the commit and the commit message.
+    Save for each member their commits, the number of lines added 
+    and the number of lines deleted, the date, the lines of the commit,
+    and the commit message.
 
     Return the list sorted by number of lines added.
     """
+    # Define account mapping
+    account_mapping = {
+        "FadyCoding": "Fady Bekkar",
+        "Fady BEKKAR": "Fady Bekkar"
+        # Add more mappings as needed
+    }
 
     members_commits = {}
     origin = repo.remotes.origin.url.split(".git")[0]
+
     for commit in repo.iter_commits("HEAD"):
         author = commit.author.name
-        # TODO: mapping
+
+        # Apply mapping
+        author = account_mapping.get(author, author)
 
         # Ignore merge commits
         if len(commit.parents) > 1 or "merge" in commit.message.lower():
             continue
-        
+
         if author not in members_commits:
             members_commits[author] = []  # Commits
 
