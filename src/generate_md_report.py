@@ -66,6 +66,25 @@ def generate_report(repo_data: dict):
                 report += f"| [{contributor}]({contributor_report_file}) | {lines} | {percent}% |\n"
             report += "\n"
 
+    # Add huge commits
+    if "members_commits" in repo_data:
+        huge_commits = []
+        for member in repo_data["members_commits"]:
+            for commit in repo_data["members_commits"][member]:
+                if commit["lines_added"] >= 3000:
+                    commit["member"] = member
+                    huge_commits.append(commit)
+        # Sort the huge commits by lines added
+        huge_commits.sort(key=lambda x: x["lines_added"], reverse=True)
+
+        report += "## Huge Commits (3000+ lines added)\n"
+        report += "| Commit | Contributor | Message | Lines Added | Lines Deleted |\n"
+        report += "|--------|-------------|---------| ------------|---------------|\n"
+        for commit in huge_commits:
+            commit["message"] = commit["message"].replace("\n", "")
+            report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['member']} | {commit['message']} | +{commit['lines_added']} | -{commit['lines_deleted']} |\n"
+        report += "\n"
+
     return report
 
 
@@ -76,28 +95,42 @@ def generate_contributor_report(repo_data: dict, contributor: str):
     loc_data = repo_data["loc_data"]
     final_loc_data = loc_data.get("Final LOC", {}).get("data", {}).get(contributor, {})
 
-    if not final_loc_data:
-        return None
+    report = (
+        f"<- back to [Repository Report](../{repo_data['repository']}_report.md)\n\n"
+    )
+    report += f"# {contributor} Contribution Report\n"
 
-    report = f"# {contributor} Contribution Report\n"
-    report += f"**Repository:** {repo_data['repository']}\n\n"
-    report += "## Line of codes\n"
-    report += f"**Total Lines:** {final_loc_data.get('lines', 'N/A')}\n"
-    report += f"**Percentage:** {final_loc_data.get('percentage', 'N/A'):.2f}%\n\n"
+    if final_loc_data:
+        report += f"**Repository:** {repo_data['repository']}\n\n"
+        report += "## Line of codes\n"
+        report += f"**Total Lines:** {final_loc_data.get('lines', 'N/A')}\n"
+        report += f"**Percentage:** {final_loc_data.get('percentage', 'N/A'):.2f}%\n\n"
 
-    # Add per root folder contribution
-    report += "### Contribution by Root Folder\n"
-    per_folder_data = repo_data["loc_data"]["Root Folder LOC"].get(contributor, {})
-    report += "| Folder | Commits | Percent |\n"
-    report += "|--------|-------|---------|\n"
-    for folder, data in per_folder_data.items():
-        commits = data.get("contributions", "N/A")
-        total_folder_commits = data.get("total_commits", "N/A")
-        percent = data.get("percentage", None)
-        # Round the percentage to two decimal places
-        percent = f"{percent:.2f}" if percent is not None else "N/A"
-        report += f"| {folder} | **{commits}** / {total_folder_commits} | {percent}% |\n"
-    report += "\nThe folder percentage is calculated based on the total Commits of each contributor that has contributed to the said folder.\n"
+        # Add per root folder contribution
+        report += "### Contribution by Root Folder\n"
+        per_folder_data = repo_data["loc_data"]["Root Folder LOC"].get(contributor, {})
+        report += "| Folder | Commits | Percent |\n"
+        report += "|--------|-------|---------|\n"
+        for folder, data in per_folder_data.items():
+            commits = data.get("contributions", "N/A")
+            total_folder_commits = data.get("total_commits", "N/A")
+            percent = data.get("percentage", None)
+            # Round the percentage to two decimal places
+            percent = f"{percent:.2f}" if percent is not None else "N/A"
+            report += (
+                f"| {folder} | **{commits}** / {total_folder_commits} | {percent}% |\n"
+            )
+        report += "\nThe folder percentage is calculated based on the total Commits of each contributor that has contributed to the said folder.\n"
+
+    if repo_data.get("members_commits"):
+        # Add the biggest commits for the contributor
+        report += "## Biggest Commits\n"
+        report += "| Commit | Message | Lines Added | Lines Deleted |\n"
+        report += "|--------|---------| ------------|---------------|\n"
+        for commit in repo_data["members_commits"].get(contributor, [])[:30]:
+            commit["message"] = commit["message"].replace("\n", "")
+            report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['message']} | +{commit['lines_added']} | -{commit['lines_deleted']} |\n"
+        report += "\n"
 
     return report
 
