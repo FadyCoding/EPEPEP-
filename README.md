@@ -1,4 +1,7 @@
-# EPEPEP, a Git repository analysis tool
+# EPEPEP : Extensive Project Evaluation Platform for Education Purposes
+
+EPEPEP is a platform that a Web developer teacher can use to evaluate a large number of projects through
+their git repository.
 
 ## Getting Started
 
