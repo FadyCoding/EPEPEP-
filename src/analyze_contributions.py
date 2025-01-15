@@ -4,7 +4,22 @@ import json
 from collections import defaultdict
 
 
-def analyze_total_loc(repo_path):
+def load_account_mapping(account_mapping_path):
+    """
+    Load account mapping from a JSON file.
+    """
+    try:
+        with open(account_mapping_path, "r") as file:
+            return json.load(file)
+    except Exception as e:
+        print(f"Error loading account mapping: {e}")
+        return {}
+
+
+def analyze_total_loc(repo_path, account_mapping):
+    """
+    Analyze total lines of code (LOC) added, deleted, and total changes.
+    """
     print("Analyzing total LOC...")
     total_loc = {"added": 0, "deleted": 0, "total": 0}
     loc_data = defaultdict(lambda: {"added": 0, "deleted": 0})
@@ -31,11 +46,20 @@ def analyze_total_loc(repo_path):
             except ValueError:
                 print(f"Skipping binary file entry in commit {current_commit}: {line}")
 
-    return {"total": total_loc, "data": loc_data}
+    # Apply account mapping
+    mapped_loc_data = defaultdict(lambda: {"added": 0, "deleted": 0})
+    for commit, stats in loc_data.items():
+        author = account_mapping.get(commit, commit)
+        mapped_loc_data[author]["added"] += stats["added"]
+        mapped_loc_data[author]["deleted"] += stats["deleted"]
+
+    return {"total": total_loc, "data": mapped_loc_data}
 
 
-def analyze_final_loc(repo_path):
-    # Get all tracked files without changing directories
+def analyze_final_loc(repo_path, account_mapping):
+    """
+    Analyze the final state of the repository and map contributions.
+    """
     result = subprocess.run(
         ["git", "-C", repo_path, "ls-files"],
         stdout=subprocess.PIPE,
@@ -45,7 +69,6 @@ def analyze_final_loc(repo_path):
     )
     files = result.stdout.splitlines()
 
-    # Collect the final LOC for each author
     final_loc = defaultdict(int)
     for file in files:
         blame_result = subprocess.run(
@@ -60,12 +83,10 @@ def analyze_final_loc(repo_path):
         for line in lines:
             if line.startswith("author "):
                 author = line.split(" ", 1)[1]
+                author = account_mapping.get(author, author)
                 final_loc[author] += 1
 
-    # Calculate the total LOC across all authors
     total_lines = sum(final_loc.values())
-
-    # Build the final LOC data structure with percentage
     final_loc_with_percentage = {
         author: {
             "lines": loc,
@@ -74,7 +95,6 @@ def analyze_final_loc(repo_path):
         for author, loc in final_loc.items()
     }
 
-    # Sort final_loc by lines
     final_loc_with_percentage = dict(
         sorted(
             final_loc_with_percentage.items(),
@@ -86,14 +106,10 @@ def analyze_final_loc(repo_path):
     return {"total": total_lines, "data": final_loc_with_percentage}
 
 
-def analyze_contribution_per_root_folder(repo_path):
-    # For each contributor commits
-    # List the modified file path
-    # Get the root folder
-    # Add +1 to root folder
-    # Display the % of root folder contribution for the contributor
-
-    # Get all contributors
+def analyze_contribution_per_root_folder(repo_path, account_mapping):
+    """
+    Analyze contributions per root folder by author.
+    """
     result = subprocess.run(
         ["git", "-C", repo_path, "shortlog", "-sne"],
         stdout=subprocess.PIPE,
@@ -103,20 +119,15 @@ def analyze_contribution_per_root_folder(repo_path):
     )
     contributors = result.stdout.splitlines()
 
-    root_folder_contributions = (
-        {}
-    )  # Contributor -> Root Folder -> { Contrib. count, contrib. % }
-    total_root_folder_commits = defaultdict(int)  # Root Folder -> Total Commits count
+    root_folder_contributions = {}
+    total_root_folder_commits = defaultdict(int)
 
-    # Process each contributor
     for contributor in contributors:
-
-        # Get the contributor name
         contributor_name = contributor.split("\t")[-1].strip()
         contributor_name = contributor_name.split("<")[0].strip()
+        contributor_name = account_mapping.get(contributor_name, contributor_name)
         root_folder_contributions[contributor_name] = {}
 
-        # Get the contributor commits
         result = subprocess.run(
             [
                 "git",
@@ -133,7 +144,6 @@ def analyze_contribution_per_root_folder(repo_path):
         )
         commits = result.stdout.splitlines()
 
-        # Process each commit
         for commit in commits:
             this_commit_root_folders = set()
             result = subprocess.run(
@@ -152,21 +162,15 @@ def analyze_contribution_per_root_folder(repo_path):
                 encoding="utf-8",
                 errors="replace",
             )
-            files = result.stdout.splitlines()
+            files = result.stdout.splitlines()[1:]
 
-            # Ignore the commit message (first line)
-            files = files[1:]
-
-            # Get the root folder for each modified file
             for file in files:
                 root_folder = file.split("/", 1)[0]
                 if not root_folder:
                     continue
 
-                # Add the root folder to the set (so that we only count it once per commit)
                 this_commit_root_folders.add(root_folder)
 
-            # Add +1 to each root folder and update the total commits for that root folder
             for root_folder in this_commit_root_folders:
                 if root_folder not in root_folder_contributions[contributor_name]:
                     root_folder_contributions[contributor_name][root_folder] = {
@@ -178,100 +182,44 @@ def analyze_contribution_per_root_folder(repo_path):
                 ] += 1
                 total_root_folder_commits[root_folder] += 1
 
-    # Calculate the percentage of contribution for each root folder
     for contributor_name, folders in root_folder_contributions.items():
-        # Get the root folder contributions with percentage
         for root_folder, contrib in folders.items():
             total_commits = total_root_folder_commits[root_folder]
-            if total_commits > 0:
-                percentage_contribution = (
-                    contrib["contributions"] / total_commits
-                ) * 100
-            else:
-                percentage_contribution = 0
+            contrib["percentage"] = (contrib["contributions"] / total_commits) * 100 if total_commits > 0 else 0
+            contrib["total_commits"] = total_commits
 
-            root_folder_contributions[contributor_name][root_folder][
-                "percentage"
-            ] = percentage_contribution
-            root_folder_contributions[contributor_name][root_folder][
-                "total_commits"
-            ] = total_commits
-
-    # Sort the root folders by contribution
     for contributor_name, folders in root_folder_contributions.items():
         root_folder_contributions[contributor_name] = dict(
-            sorted(
-                folders.items(),
-                key=lambda item: item[1]["contributions"],
-                reverse=True,
-            )
+            sorted(folders.items(), key=lambda item: item[1]["contributions"], reverse=True)
         )
 
     return root_folder_contributions
 
 
-def merge_accounts(final_loc, account_mapping):
-    merged_final_loc = defaultdict(lambda: {"lines": 0, "percentage": 0})
-
-    # Merge LOC values
-    for account, data in final_loc.items():
-        main_account = account_mapping.get(account, account)
-        merged_final_loc[main_account]["lines"] += data["lines"]
-
-    # Recalculate percentages after merging
-    total_lines = sum(data["lines"] for data in merged_final_loc.values())
-    for account, data in merged_final_loc.items():
-        data["percentage"] = (
-            (data["lines"] / total_lines * 100) if total_lines > 0 else 0
-        )
-
-    return merged_final_loc
-
-
-def generate_report(repos, account_mapping=None, output_dir="."):
+def generate_report(repos, account_mapping, output_dir="."):
     """
     Generate LOC reports for repositories and save them in the specified directory.
-
-    Args:
-        repos (dict): Dictionary mapping repo URLs to their local paths.
-        account_mapping (dict): Optional mapping of account names to a unified name.
-        output_dir (str): Directory where the reports will be saved.
     """
-    # Ensure output directory exists
     output_dir = os.path.abspath(output_dir)
-
     if not os.path.exists(output_dir):
         raise FileNotFoundError(f"Output directory does not exist: {output_dir}")
 
     for repo_url, repo_path in repos.items():
         print(f"Analyzing repository: {repo_url}")
 
-        # Analyze LOC
-        total_loc = analyze_total_loc(repo_path)
-        final_loc = analyze_final_loc(repo_path)
+        total_loc = analyze_total_loc(repo_path, account_mapping)
+        final_loc = analyze_final_loc(repo_path, account_mapping)
+        root_folder_loc = analyze_contribution_per_root_folder(repo_path, account_mapping)
 
-        # Analyze contribution per root folder
-        root_folder_loc = analyze_contribution_per_root_folder(repo_path)
-
-        # Merge accounts if mapping is provided
-        if account_mapping:
-            final_loc = merge_accounts(final_loc, account_mapping)
-
-        # Prepare report data
         report = {
             "Total LOC": total_loc,
             "Final LOC": final_loc,
             "Root Folder LOC": root_folder_loc,
         }
 
-        # Build the file name for the report
         report_filename = f"{os.path.basename(repo_path)}_loc_report.json"
         report_path = os.path.join(output_dir, report_filename)
 
-        # Debug: Show where the file will be saved
-        print(f"Saving report to: {os.path.abspath(report_path)}")
-
-        # Write the report to the file
         try:
             with open(report_path, "w") as report_file:
                 json.dump(report, report_file, indent=4)
@@ -281,19 +229,13 @@ def generate_report(repos, account_mapping=None, output_dir="."):
 
 
 if __name__ == "__main__":
-    # Load the JSON file containing cloned repos
     with open("./my_repos_info.json", "r") as file:
         repos = json.load(file)
 
-    # Optional account mapping
-    account_mapping = {
-        "FadyCoding": "Fady B.",
-        "DebiAI Author": "DebiAI Contributor",
-        # Add more mappings if necessary
-    }
+    account_mapping_path = "./account_mapping.json"
+    account_mapping = load_account_mapping(account_mapping_path)
 
     output_directory = "./loc_reports"
-
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
