@@ -103,6 +103,7 @@ def analyze_commits(repo_dir, account_mapping):
     """
     Analyze commit activity for a given repository, applying account mapping.
     """
+    not_found_members = set()
     try:
         repo = git.Repo(repo_dir)
         repo_title = os.path.basename(repo_dir)
@@ -111,9 +112,12 @@ def analyze_commits(repo_dir, account_mapping):
         commit_summary = defaultdict(int)
         commit_dates = []
         for commit in commits:
-            author = account_mapping.get(commit.author.name, commit.author.name)
-            commit_summary[author] += 1
-            commit_dates.append((author, str(commit.committed_datetime)))
+            author = account_mapping.get(commit.author.name, None)
+            if author is None:
+                not_found_members.add(commit.author.name)
+            else:
+                commit_summary[author] += 1
+                commit_dates.append((author, str(commit.committed_datetime)))
 
         commit_dates.sort(key=lambda x: x[1])
 
@@ -130,6 +134,9 @@ def analyze_commits(repo_dir, account_mapping):
             if branch.replace("origin/", "") not in excluded_branches
         ]
         avg_commits = total_unique_commits // len(filtered_branches) if filtered_branches else 0
+
+        if not_found_members:
+            print(f"   Account mapping not found for: {', '.join(not_found_members)}")
 
         return {
             "repository": repo_title,
@@ -148,7 +155,7 @@ def analyze_commits(repo_dir, account_mapping):
         return {}
 
 
-def analyze_multiple_repos_from_json(json_file_path: str, account_mapping, output_dir: str = None):
+def analyze_multiple_repos_from_json(repo_data_json_file_path: str, account_mapping, output_dir: str = None):
     """
     Analyze commits for multiple repositories listed in a JSON file, applying account mapping.
     """
@@ -156,7 +163,7 @@ def analyze_multiple_repos_from_json(json_file_path: str, account_mapping, outpu
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        with open(json_file_path, "r") as file:
+        with open(repo_data_json_file_path, "r") as file:
             repo_data = json.load(file)
 
         repo_dirs = list(repo_data.values())
@@ -197,7 +204,7 @@ def load_account_mapping(account_mapping_path):
 
 
 if __name__ == "__main__":
-    json_file_path = "./my_repos_info.json"
+    repo_data_json_file_path = "./my_repos_info.json"
     account_mapping_path = "./account_mapping.json"
     output_directory = "./commits_reports"
 
@@ -210,7 +217,7 @@ if __name__ == "__main__":
     print("Starting commit analysis...")
     try:
         all_analysis = analyze_multiple_repos_from_json(
-            json_file_path,
+            repo_data_json_file_path,
             account_mapping=account_mapping,
             output_dir=output_directory
         )
