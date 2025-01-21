@@ -60,7 +60,9 @@ def count_commits_per_member_per_branch(repo, branches, account_mapping):
             branch_commits = defaultdict(int)
             for commit in repo.iter_commits(branch):
                 author = commit.author.name
-                mapped_author = account_mapping.get(author, author)
+                mapped_author = account_mapping.get(author, None)
+                if mapped_author is None:
+                    continue
                 branch_commits[mapped_author] += 1
             TM_commits_by_branch[branch] = dict(branch_commits)
         except Exception as e:
@@ -79,8 +81,8 @@ def get_commit_per_member(repo, account_mapping):
     origin = repo.remotes.origin.url.split(".git")[0]
     for commit in repo.iter_commits("HEAD"):
         author = commit.author.name
-        mapped_author = account_mapping.get(author, author)
-        if len(commit.parents) > 1 or "merge" in commit.message.lower():
+        mapped_author = account_mapping.get(author, None)
+        if mapped_author is None or len(commit.parents) > 1 or "merge" in commit.message.lower():
             continue
         if mapped_author not in members_commits:
             members_commits[mapped_author] = []

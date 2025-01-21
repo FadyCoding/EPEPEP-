@@ -49,7 +49,9 @@ def analyze_total_loc(repo_path, account_mapping):
     # Apply account mapping
     mapped_loc_data = defaultdict(lambda: {"added": 0, "deleted": 0})
     for commit, stats in loc_data.items():
-        author = account_mapping.get(commit, commit)
+        author = account_mapping.get(commit, None)
+        if author is None:
+            continue
         mapped_loc_data[author]["added"] += stats["added"]
         mapped_loc_data[author]["deleted"] += stats["deleted"]
 
@@ -70,6 +72,13 @@ def analyze_final_loc(repo_path, account_mapping):
     files = result.stdout.splitlines()
 
     final_loc = defaultdict(int)
+
+    # Add members that are in the mapping
+    # (so that even members with no LOC are included in the final report)
+    for author in account_mapping.values():
+        final_loc[author] = 0
+    
+    # Calculate LOC for each file
     for file in files:
         blame_result = subprocess.run(
             ["git", "-C", repo_path, "blame", "-w", "--line-porcelain", file],
@@ -83,8 +92,9 @@ def analyze_final_loc(repo_path, account_mapping):
         for line in lines:
             if line.startswith("author "):
                 author = line.split(" ", 1)[1]
-                author = account_mapping.get(author, author)
-                final_loc[author] += 1
+                author = account_mapping.get(author, None)
+                if author is not None:
+                    final_loc[author] += 1
 
     total_lines = sum(final_loc.values())
     final_loc_with_percentage = {
@@ -125,8 +135,12 @@ def analyze_contribution_per_root_folder(repo_path, account_mapping):
     for contributor in contributors:
         contributor_name = contributor.split("\t")[-1].strip()
         contributor_name = contributor_name.split("<")[0].strip()
-        contributor_name = account_mapping.get(contributor_name, contributor_name)
-        root_folder_contributions[contributor_name] = {}
+        mapped_contributor_name = account_mapping.get(contributor_name, None)
+        if mapped_contributor_name is None:
+            print(f"Skipping unmapped contributor: {contributor_name}")
+            continue
+        if mapped_contributor_name not in root_folder_contributions:
+            root_folder_contributions[mapped_contributor_name] = {}
 
         result = subprocess.run(
             [
@@ -172,12 +186,12 @@ def analyze_contribution_per_root_folder(repo_path, account_mapping):
                 this_commit_root_folders.add(root_folder)
 
             for root_folder in this_commit_root_folders:
-                if root_folder not in root_folder_contributions[contributor_name]:
-                    root_folder_contributions[contributor_name][root_folder] = {
+                if root_folder not in root_folder_contributions[mapped_contributor_name]:
+                    root_folder_contributions[mapped_contributor_name][root_folder] = {
                         "contributions": 0,
                         "percentage": 0,
                     }
-                root_folder_contributions[contributor_name][root_folder][
+                root_folder_contributions[mapped_contributor_name][root_folder][
                     "contributions"
                 ] += 1
                 total_root_folder_commits[root_folder] += 1

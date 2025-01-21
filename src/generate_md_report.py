@@ -2,13 +2,6 @@ import json
 import os
 
 
-def apply_mapping(contributor, account_mapping):
-    """
-    Apply account mapping to normalize contributor names.
-    """
-    return account_mapping.get(contributor, contributor)
-
-
 def load_loc_data(loc_dir):
     """
     Load LOC data from the specified directory.
@@ -26,7 +19,7 @@ def load_loc_data(loc_dir):
     return loc_data
 
 
-def generate_md_report_text(repo_data: dict, account_mapping):
+def generate_md_report_text(repo_data: dict, account_mapping: dict):
     """
     Generate a Markdown report from the analysis data and LOC data.
     """
@@ -51,12 +44,14 @@ def generate_md_report_text(repo_data: dict, account_mapping):
         if "Final LOC" in loc_data and isinstance(loc_data["Final LOC"], dict):
             # Add a section for each contributor
             report += "### Contribution\n"
-            report += f"**Total Contributors:** {len(loc_data['Final LOC'])}\n\n"
+            report += f"**Total Contributors:** {len(loc_data['Final LOC'].get('data', {}))}\n\n"
             report += "| Contributor | Lines | Percent |\n"
             report += "|-------------|-------|---------|\n"
 
             for contributor in loc_data["Final LOC"].get("data", {}):
-                mapped_contributor = apply_mapping(contributor, account_mapping)
+                mapped_contributor = account_mapping.get(contributor, None)
+                if not mapped_contributor:
+                    continue
                 final_loc_data = loc_data["Final LOC"]["data"]
                 lines = final_loc_data[contributor].get("lines", "N/A")
                 percent = final_loc_data[contributor].get("percentage", None)
@@ -71,7 +66,9 @@ def generate_md_report_text(repo_data: dict, account_mapping):
     if "members_commits" in repo_data:
         huge_commits = []
         for member in repo_data["members_commits"]:
-            mapped_member = apply_mapping(member, account_mapping)
+            mapped_member = account_mapping.get(member, None)
+            if not mapped_member:
+                continue
             for commit in repo_data["members_commits"][member]:
                 if commit["lines_added"] >= 3000:
                     commit["member"] = mapped_member
@@ -89,18 +86,17 @@ def generate_md_report_text(repo_data: dict, account_mapping):
     return report
 
 
-def generate_contributor_report(repo_data: dict, contributor: str, account_mapping):
+def generate_contributor_report(repo_data: dict, contributor: str):
     """
     Generate a detailed Markdown report for a specific contributor.
     """
-    mapped_contributor = apply_mapping(contributor, account_mapping)
     loc_data = repo_data["loc_data"]
     final_loc_data = loc_data.get("Final LOC", {}).get("data", {}).get(contributor, {})
 
     report = (
         f"<- back to [Repository Report](../{repo_data['repository']}_report.md)\n\n"
     )
-    report += f"# {mapped_contributor} Contribution Report\n"
+    report += f"# {contributor} Contribution Report\n"
 
     if final_loc_data:
         report += f"**Repository:** {repo_data['repository']}\n\n"
@@ -154,9 +150,7 @@ def generate_md_report(
 
         for contributor in contributors:
             print(f" - Generating report for {contributor}...")
-            contributor_report = generate_contributor_report(
-                repository_data, contributor, account_mapping
-            )
+            contributor_report = generate_contributor_report(repository_data, contributor)
             if contributor_report:
                 contributor_file = os.path.join(
                     contributors_dir, f"{contributor.replace(' ', '_')}_report.md"
