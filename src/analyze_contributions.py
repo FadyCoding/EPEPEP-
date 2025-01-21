@@ -196,7 +196,19 @@ def analyze_contribution_per_root_folder(repo_path, account_mapping):
     return root_folder_contributions
 
 
-def generate_report(repos, account_mapping, output_dir="."):
+def generate_loc_report(repo_path, account_mapping):
+    total_loc = analyze_total_loc(repo_path, account_mapping)
+    final_loc = analyze_final_loc(repo_path, account_mapping)
+    root_folder_loc = analyze_contribution_per_root_folder(repo_path, account_mapping)
+
+    return {
+        "Total LOC": total_loc,
+        "Final LOC": final_loc,
+        "Root Folder LOC": root_folder_loc,
+    }
+
+
+def generate_reports(repos, account_mapping, output_dir="."):
     """
     Generate LOC reports for repositories and save them in the specified directory.
     """
@@ -207,16 +219,7 @@ def generate_report(repos, account_mapping, output_dir="."):
     for repo_url, repo_path in repos.items():
         print(f"Analyzing repository: {repo_url}")
 
-        total_loc = analyze_total_loc(repo_path, account_mapping)
-        final_loc = analyze_final_loc(repo_path, account_mapping)
-        root_folder_loc = analyze_contribution_per_root_folder(repo_path, account_mapping)
-
-        report = {
-            "Total LOC": total_loc,
-            "Final LOC": final_loc,
-            "Root Folder LOC": root_folder_loc,
-        }
-
+        report = generate_loc_report(repo_path, account_mapping)
         report_filename = f"{os.path.basename(repo_path)}_loc_report.json"
         report_path = os.path.join(output_dir, report_filename)
 
@@ -239,4 +242,4 @@ if __name__ == "__main__":
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
-    generate_report(repos, account_mapping, output_dir=output_directory)
+    generate_reports(repos, account_mapping, output_dir=output_directory)

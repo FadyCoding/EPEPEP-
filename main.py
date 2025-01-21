@@ -1,11 +1,12 @@
 import argparse
 from src.clone_repo import clone_repo, clone_repos
 from src.analyze_commits import analyze_commits, analyze_multiple_repos_from_json
-from src.analyze_contributions import generate_report
-from src.generate_md_report import generate_md_report
+from src.analyze_contributions import generate_reports, generate_loc_report
+from src.generate_md_report import generate_md_reports, generate_md_report
 import os
 import json
 import yaml
+import shutil
 
 
 def analyse(json_file, output_dir):
@@ -61,7 +62,7 @@ def line_of_code_report(json_file, output_dir, mapping_file_path=None):
 
     # Generate reports
     try:
-        generate_report(repos, account_mapping, output_dir=output_dir)
+        generate_reports(repos, account_mapping, output_dir=output_dir)
         print("LOC reports generated successfully.")
     except Exception as e:
         print(f"Error generating LOC reports: {e}")
@@ -139,7 +140,7 @@ def generate_md(
 
         repository_data.append(repo_data)
 
-    generate_md_report(repository_data, account_mapping, output_dir)
+    generate_md_reports(repository_data, account_mapping, output_dir)
 
 
 def full_run(yaml_config_file_path: str, skip_clone: bool = False):
@@ -213,30 +214,70 @@ def full_run(yaml_config_file_path: str, skip_clone: bool = False):
 
     # Clone repositories
     print("Cloning repositories...")
-    os.makedirs(config["folders"]["cloned_projects"], exist_ok=True)
     cloned_repositories_dir = config["folders"]["cloned_projects"]
+    os.makedirs(cloned_repositories_dir, exist_ok=True)
     repos = config.get("projects", {})
     for project_name, project_data in repos.items():
-        print(f" - Project: {project_name}")
+        print(f"- Project: {project_name}")
         repo_dir = os.path.join(cloned_repositories_dir, project_name)
         config["projects"][project_name]["repo_dir"] = repo_dir
         # Check if the repository is already cloned
         if os.path.exists(repo_dir) and skip_clone:
             print(f"   Repository '{project_name}' already cloned. Skipping...")
-        clone_repo(project_data["url"], repo_dir)
+        else:
+            shutil.rmtree(repo_dir, ignore_errors=True)
+            clone_repo(project_data["url"], repo_dir)
 
     # Analyze commits
     print("Analyzing commits...")
-    os.makedirs(config["folders"]["commit_reports"], exist_ok=True)
     commits_reports_dir = config["folders"]["commit_reports"]
+    os.makedirs(commits_reports_dir, exist_ok=True)
     for project_name, project_data in repos.items():
-        print(f" - Project: {project_name}")
+        print(f"- Project: {project_name}")
         analysis = analyze_commits(
             project_data["repo_dir"], project_data["new_members_mapping"]
         )
         output_file = os.path.join(commits_reports_dir, f"{project_name}_report.json")
+        project_data["analysis"] = analysis
         with open(output_file, "w") as f:
             json.dump(analysis, f, indent=2)
+
+    # Generate LOC reports
+    print("Analyzing lines of code...")
+    loc_reports_dir = config["folders"]["line_of_code_reports"]
+    os.makedirs(loc_reports_dir, exist_ok=True)
+    for project_name, project_data in repos.items():
+        print(f"- Project: {project_name}")
+        report = generate_loc_report(
+            project_data["repo_dir"], project_data["new_members_mapping"]
+        )
+
+        output_file = os.path.join(loc_reports_dir, f"{project_name}_loc_report.json")
+        with open(output_file, "w") as f:
+            json.dump(report, f, indent=2)
+
+    # Generate markdown reports
+    print("Generating markdown reports...")
+    markdown_reports_dir = config["folders"]["markdown_reports"]
+    os.makedirs(markdown_reports_dir, exist_ok=True)
+    for project_name, project_data in repos.items():
+        print(f"- Project: {project_name}")
+        repository_data = project_data["analysis"] | {
+            "repository": project_name,
+            "repository_url": project_data["url"],
+            "loc_data": report,
+        }
+
+        report_folder_dir = os.path.join(markdown_reports_dir, project_name)
+        generate_md_report(
+            project_name,
+            repository_data,
+            project_data["new_members_mapping"],
+            report_folder_dir,
+        )
+
+    print("All steps completed successfully.")
+    print(f"Markdown reports saved in '{markdown_reports_dir}'")
 
 
 def main():

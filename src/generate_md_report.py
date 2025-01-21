@@ -26,7 +26,7 @@ def load_loc_data(loc_dir):
     return loc_data
 
 
-def generate_report(repo_data: dict, account_mapping):
+def generate_md_report_text(repo_data: dict, account_mapping):
     """
     Generate a Markdown report from the analysis data and LOC data.
     """
@@ -40,7 +40,9 @@ def generate_report(repo_data: dict, account_mapping):
         total = loc_data.get("Total LOC", {}).get("total", {})
         report += "## Line of Codes\n"
         report += "### Count:\n"
-        report += f"- **Final LOC:** {loc_data.get('Final LOC', {}).get('total', 'N/A')}\n\n"
+        report += (
+            f"- **Final LOC:** {loc_data.get('Final LOC', {}).get('total', 'N/A')}\n\n"
+        )
         report += "### Total Committed:\n"
         report += f"- **Total Added:** {total.get('added', 'N/A')}\n"
         report += f"- **Total Removed:** {total.get('deleted', 'N/A')}\n"
@@ -134,7 +136,37 @@ def generate_contributor_report(repo_data: dict, contributor: str, account_mappi
 
 
 def generate_md_report(
-    repository_data: list[dict], account_mapping: dict, output_dir: str
+    repository_name: str, repository_data: dict, account_mapping: dict, output_dir: str
+):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    report = generate_md_report_text(repository_data, account_mapping)
+    output_file = os.path.join(output_dir, f"{repository_name}_report.md")
+    with open(output_file, "w") as file:
+        file.write(report)
+
+    contributors = repository_data["loc_data"].get("Final LOC", {}).get("data", {})
+    if contributors:
+        contributors_dir = os.path.join(output_dir, "contributors")
+        if not os.path.exists(contributors_dir):
+            os.makedirs(contributors_dir)
+
+        for contributor in contributors:
+            print(f" - Generating report for {contributor}...")
+            contributor_report = generate_contributor_report(
+                repository_data, contributor, account_mapping
+            )
+            if contributor_report:
+                contributor_file = os.path.join(
+                    contributors_dir, f"{contributor.replace(' ', '_')}_report.md"
+                )
+                with open(contributor_file, "w") as f:
+                    f.write(contributor_report)
+
+
+def generate_md_reports(
+    repository_data_list: list[dict], account_mapping: dict, output_dir: str
 ):
     """
     Generate Markdown reports for repositories and contributors.
@@ -142,31 +174,9 @@ def generate_md_report(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    for repo_data in repository_data:
+    for repo_data in repository_data_list:
         repo_name = repo_data["repository"]
-        print(f"Generating report for {repo_name}...")
-
         repo_dir = os.path.join(output_dir, repo_name)
-        if not os.path.exists(repo_dir):
-            os.makedirs(repo_dir)
+        print(f"Generating report for {repo_name}...")
+        generate_md_report(repo_name, repo_data, account_mapping, repo_dir)
 
-        report = generate_report(repo_data, account_mapping)
-        output_file = os.path.join(repo_dir, f"{repo_name}_report.md")
-        with open(output_file, "w") as file:
-            file.write(report)
-
-        contributors = repo_data["loc_data"].get("Final LOC", {}).get("data", {})
-        if contributors:
-            contributors_dir = os.path.join(repo_dir, "contributors")
-            if not os.path.exists(contributors_dir):
-                os.makedirs(contributors_dir)
-
-            for contributor in contributors:
-                print(f" - Generating report for {contributor}...")
-                contributor_report = generate_contributor_report(repo_data, contributor, account_mapping)
-                if contributor_report:
-                    contributor_file = os.path.join(
-                        contributors_dir, f"{contributor.replace(' ', '_')}_report.md"
-                    )
-                    with open(contributor_file, "w") as f:
-                        f.write(contributor_report)
