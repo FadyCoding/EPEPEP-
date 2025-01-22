@@ -2,6 +2,7 @@ import os
 import subprocess
 import json
 from collections import defaultdict
+from git import Repo
 
 
 def load_account_mapping(account_mapping_path):
@@ -20,42 +21,49 @@ def analyze_total_loc(repo_path, account_mapping):
     """
     Analyze total lines of code (LOC) added, deleted, and total changes.
     """
-    print("Analyzing total LOC...")
-    total_loc = {"added": 0, "deleted": 0, "total": 0}
-    loc_data = defaultdict(lambda: {"added": 0, "deleted": 0})
+    print("  Analyzing total LOC...")
+    total_loc = {"added": 0, "deleted": 0}
+    per_member_data = {}
 
-    git_dir = os.path.join(repo_path, ".git")
-    command = ["git", "--git-dir", git_dir, "log", "--numstat", "--pretty=%H"]
-    result = subprocess.run(command, stdout=subprocess.PIPE, text=True)
-    lines = result.stdout.splitlines()
+    repo = Repo(repo_path)
 
-    current_commit = None
-    for line in lines:
-        if len(line) == 40:  # SHA length (commit hash)
-            current_commit = line
-        elif "\t" in line and current_commit:
-            added, deleted, _ = line.split("\t")
-            added = int(added) if added.isdigit() else 0
-            deleted = int(deleted) if deleted.isdigit() else 0
-            try:
-                loc_data[current_commit]["added"] += added
-                loc_data[current_commit]["deleted"] += deleted
-                total_loc["added"] += added
-                total_loc["deleted"] += deleted
-                total_loc["total"] += added - deleted
-            except ValueError:
-                print(f"Skipping binary file entry in commit {current_commit}: {line}")
+    # Iterate over all commits
+    for commit in repo.iter_commits():
+        # Store the total LOC changes
+        total_loc["added"] += commit.stats.total["insertions"]
+        total_loc["deleted"] += commit.stats.total["deletions"]
 
-    # Apply account mapping
-    mapped_loc_data = defaultdict(lambda: {"added": 0, "deleted": 0})
-    for commit, stats in loc_data.items():
-        author = account_mapping.get(commit, None)
+        # Store the LOC changes per member
+        author = commit.author.name
+        author = account_mapping.get(author, None)
         if author is None:
             continue
-        mapped_loc_data[author]["added"] += stats["added"]
-        mapped_loc_data[author]["deleted"] += stats["deleted"]
 
-    return {"total": total_loc, "data": mapped_loc_data}
+        if author not in per_member_data:
+            per_member_data[author] = {
+                "added": 0,
+                "deleted": 0,
+                "total": 0,
+                "nb_commits": 0,
+                "messages": [],
+            }
+
+        per_member_data[author]["added"] += commit.stats.total["insertions"]
+        per_member_data[author]["deleted"] += commit.stats.total["deletions"]
+        per_member_data[author]["total"] += commit.stats.total["lines"]
+        per_member_data[author]["nb_commits"] += 1
+        per_member_data[author]["messages"].append(commit.message)
+
+    # Sort the data by number of commits
+    per_member_data = dict(
+        sorted(
+            per_member_data.items(),
+            key=lambda item: item[1]["nb_commits"],
+            reverse=True,
+        )
+    )
+
+    return {"total": total_loc, "data": per_member_data}
 
 
 def analyze_final_loc(repo_path, account_mapping):
@@ -77,7 +85,7 @@ def analyze_final_loc(repo_path, account_mapping):
     # (so that even members with no LOC are included in the final report)
     for author in account_mapping.values():
         final_loc[author] = 0
-    
+
     # Calculate LOC for each file
     for file in files:
         blame_result = subprocess.run(
@@ -186,7 +194,10 @@ def analyze_contribution_per_root_folder(repo_path, account_mapping):
                 this_commit_root_folders.add(root_folder)
 
             for root_folder in this_commit_root_folders:
-                if root_folder not in root_folder_contributions[mapped_contributor_name]:
+                if (
+                    root_folder
+                    not in root_folder_contributions[mapped_contributor_name]
+                ):
                     root_folder_contributions[mapped_contributor_name][root_folder] = {
                         "contributions": 0,
                         "percentage": 0,
@@ -199,12 +210,18 @@ def analyze_contribution_per_root_folder(repo_path, account_mapping):
     for contributor_name, folders in root_folder_contributions.items():
         for root_folder, contrib in folders.items():
             total_commits = total_root_folder_commits[root_folder]
-            contrib["percentage"] = (contrib["contributions"] / total_commits) * 100 if total_commits > 0 else 0
+            contrib["percentage"] = (
+                (contrib["contributions"] / total_commits) * 100
+                if total_commits > 0
+                else 0
+            )
             contrib["total_commits"] = total_commits
 
     for contributor_name, folders in root_folder_contributions.items():
         root_folder_contributions[contributor_name] = dict(
-            sorted(folders.items(), key=lambda item: item[1]["contributions"], reverse=True)
+            sorted(
+                folders.items(), key=lambda item: item[1]["contributions"], reverse=True
+            )
         )
 
     return root_folder_contributions

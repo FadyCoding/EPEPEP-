@@ -135,7 +135,7 @@ def analyze_commits(repo_dir, account_mapping):
             branch for branch in branches
             if branch.replace("origin/", "") not in excluded_branches
         ]
-        avg_commits = total_unique_commits // len(filtered_branches) if filtered_branches else 0
+        avg_commits_per_branch = total_unique_commits // len(filtered_branches) if filtered_branches else 0
 
         if not_found_members:
             print(f"   Account mapping not found for: {', '.join(not_found_members)}")
@@ -145,7 +145,7 @@ def analyze_commits(repo_dir, account_mapping):
             "repository_url": repo.remotes.origin.url,
             "total_commits": len(commits),
             "total_unique_commits": total_unique_commits,
-            "avg_commits": avg_commits,
+            "avg_commits_per_branch": avg_commits_per_branch,
             "commits_per_member": dict(commit_summary),
             "commit_dates": commit_dates,
             "branches_commit_counts": branch_commit_counts,
@@ -240,6 +240,6 @@ if __name__ == "__main__":
                 for member, count in members.items():
                     print(f"        {member:<30} Commits: {count}")
 
-            print("  Average Commits Per Branch:", repo_analysis["avg_commits"])
+            print("  Average Commits Per Branch:", repo_analysis["avg_commits_per_branch"])
     except Exception as e:
         print(f"Unexpected error: {e}")

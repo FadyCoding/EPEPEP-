@@ -39,11 +39,27 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
         report += "### Total Committed:\n"
         report += f"- **Total Added:** {total.get('added', 'N/A')}\n"
         report += f"- **Total Removed:** {total.get('deleted', 'N/A')}\n"
-        report += f"- **Total LOC:** {total.get('total', 'N/A')}\n\n"
+        report += f"- **Total LOC:** {total.get('added', 0) - total.get('deleted', 0)}\n\n"
+        report += "### Members committed lines:\n"
+        members = loc_data.get("Total LOC", {}).get("data", {})
+        report += "| Contributor | commits | Added | Removed | Total added | Sum |\n"
+        report += "|-------------|---------|-------|---------|-------------|-----|\n"
+        for member, data in members.items():
+            mapped_member = account_mapping.get(member, None)
+            if not mapped_member:
+                continue
+            report += f"| {mapped_member} "
+            report += f"| {data.get('nb_commits', 'N/A')} "
+            report += f"| {data.get('added', 'N/A')} "
+            report += f"| {data.get('deleted', 'N/A')} "
+            report += f"| {data.get('added', 0) - data.get('deleted', 0)} "
+            report += f"| {data.get('total', 'N/A')} |\n"
+        report += "\n"
 
         if "Final LOC" in loc_data and isinstance(loc_data["Final LOC"], dict):
             # Add a section for each contributor
             report += "### Contribution\n"
+            report += "This section shows the contribution of each contributor to the final LOC of the repository (a snapshot of the repository at the time of the analysis).\n\n"
             report += f"**Total Contributors:** {len(loc_data['Final LOC'].get('data', {}))}\n\n"
             report += "| Contributor | Lines | Percent |\n"
             report += "|-------------|-------|---------|\n"
@@ -150,7 +166,9 @@ def generate_md_report(
 
         for contributor in contributors:
             print(f" - Generating report for {contributor}...")
-            contributor_report = generate_contributor_report(repository_data, contributor)
+            contributor_report = generate_contributor_report(
+                repository_data, contributor
+            )
             if contributor_report:
                 contributor_file = os.path.join(
                     contributors_dir, f"{contributor.replace(' ', '_')}_report.md"
@@ -173,4 +191,3 @@ def generate_md_reports(
         repo_dir = os.path.join(output_dir, repo_name)
         print(f"Generating report for {repo_name}...")
         generate_md_report(repo_name, repo_data, account_mapping, repo_dir)
-

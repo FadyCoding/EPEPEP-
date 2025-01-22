@@ -21,7 +21,7 @@ def analyse(json_file, output_dir):
         print("  Branches:")
         for branch in repo_analysis["branches_commit_counts"]:
             print(f"    - {branch}")
-        print("  Average Commits Per Branch", repo_analysis["avg_commits"])
+        print("  Average Commits Per Branch", repo_analysis["avg_commits_per_branch"])
         print("  Commits Per Member Per Branch:")
         for branch, members in repo_analysis["TM_commits_by_branch"].items():
             print(f"    - Branch: {branch}")
