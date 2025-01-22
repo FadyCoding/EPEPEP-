@@ -17,6 +17,55 @@ def load_account_mapping(account_mapping_path):
         return {}
 
 
+def calculate_grades(per_member_commits_data):
+    """
+    Calculate grades based on the per member commits data.
+
+    Grade calculation:
+    The expected number of commits and lines added are calculated
+    based on the number of members and the total number of commits.
+    The grades are assigned as follows:
+    If a member nb_commits >= expected_nb_commits: commit_grade = 20
+    else: commit_grade = 20 * (nb_commits / expected_nb_commits)
+    If a member total >= expected_total: loc_grade = 20
+    else: loc_grade = 20 * (total / expected_total)
+    """
+
+    nb_members = len(per_member_commits_data)
+
+    # Calculate total number of commits
+    total_commits = sum(data["nb_commits"] for data in per_member_commits_data.values())
+    total_added = sum(data["added"] for data in per_member_commits_data.values())
+    total_deleted = sum(data["deleted"] for data in per_member_commits_data.values())
+    total = total_added - total_deleted
+
+    # Calculate expected number of commits and total LOC
+    expected_nb_commits = total_commits / nb_members
+    expected_total = total / nb_members
+
+    # Calculate grades
+    grades = {}
+    for member, data in per_member_commits_data.items():
+        commit_grade = 20
+        loc_grade = 20
+
+        if data["nb_commits"] < expected_nb_commits:
+            commit_grade = 20 * (data["nb_commits"] / expected_nb_commits)
+
+        if data["total"] < expected_total:
+            loc_grade = 20 * (data["total"] / expected_total)
+
+        grades[member] = {
+            "commit_grade": round(commit_grade, 2),
+            "loc_grade": round(loc_grade, 2),
+            "final_grade": round((commit_grade + loc_grade) / 2, 2),
+            "expected_nb_commits": round(expected_nb_commits, 2),
+            "expected_total": round(expected_total, 2),
+        }
+
+    return grades
+
+
 def analyze_total_loc(repo_path, account_mapping):
     """
     Analyze total lines of code (LOC) added, deleted, and total changes.
@@ -63,7 +112,11 @@ def analyze_total_loc(repo_path, account_mapping):
         )
     )
 
-    return {"total": total_loc, "data": per_member_data}
+    return {
+        "total": total_loc,
+        "data": per_member_data,
+        "grades": calculate_grades(per_member_data),
+    }
 
 
 def analyze_final_loc(repo_path, account_mapping):
