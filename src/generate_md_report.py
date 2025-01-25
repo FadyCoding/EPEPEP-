@@ -59,18 +59,18 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
         report += "\n"
 
         # Calculated grade
-        grades = loc_data.get("Total LOC", {}).get("grades", {})
+        grades = loc_data.get("Grades", {})
         report += "### Grade:\n"
-        report += "| Contributor | Expected nb commits | Expected total LOC | Commit grade | LOC grade | Final grade |\n"
-        report += "|-------------|--------------------|---------------------|-------------|----------|-------------|\n"
+        report += "| Contributor | Expected nb commits | Commit grade | Expected total LOC | LOC grade | Final grade |\n"
+        report += "|-------------|---------------------|--------------|--------------------|-----------|-------------|\n"
         for member, data in grades.items():
             mapped_member = account_mapping.get(member, None)
             if not mapped_member:
                 continue
             report += f"| {mapped_member} "
-            report += f"| {data.get('expected_nb_commits', 'N/A')} "
-            report += f"| {data.get('expected_total', 'N/A')} "
+            report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
             report += f"| {data.get('commit_grade', 'N/A')} "
+            report += f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
             report += f"| {data.get('loc_grade', 'N/A')} "
             report += f"| {data.get('final_grade', 'N/A')} |\n"
         report += "\n"

@@ -17,7 +17,7 @@ def load_account_mapping(account_mapping_path):
         return {}
 
 
-def calculate_grades(per_member_commits_data):
+def calculate_grades(per_member_commits_data, per_member_lines_data):
     """
     Calculate grades based on the per member commits data.
 
@@ -35,9 +35,9 @@ def calculate_grades(per_member_commits_data):
 
     # Calculate total number of commits
     total_commits = sum(data["nb_commits"] for data in per_member_commits_data.values())
-    total_added = sum(data["added"] for data in per_member_commits_data.values())
-    total_deleted = sum(data["deleted"] for data in per_member_commits_data.values())
-    total = total_added - total_deleted
+
+    # Get total LOC
+    total = sum(data["lines"] for data in per_member_lines_data.values())
 
     # Calculate expected number of commits and total LOC
     expected_nb_commits = total_commits / nb_members
@@ -46,21 +46,24 @@ def calculate_grades(per_member_commits_data):
     # Calculate grades
     grades = {}
     for member, data in per_member_commits_data.items():
+        loc_data = per_member_lines_data.get(member)
         commit_grade = 20
         loc_grade = 20
 
         if data["nb_commits"] < expected_nb_commits:
             commit_grade = 20 * (data["nb_commits"] / expected_nb_commits)
 
-        if data["total"] < expected_total:
-            loc_grade = 20 * (data["total"] / expected_total)
+        if loc_data["lines"] < expected_total:
+            loc_grade = 20 * (loc_data["lines"] / expected_total)
 
         grades[member] = {
+            "nb_commits": data["nb_commits"],
+            "expected_nb_commits": round(expected_nb_commits, 2),
             "commit_grade": round(commit_grade, 2),
+            "total": loc_data["lines"],
+            "expected_total": round(expected_total, 2),
             "loc_grade": round(loc_grade, 2),
             "final_grade": round((commit_grade + loc_grade) / 2, 2),
-            "expected_nb_commits": round(expected_nb_commits, 2),
-            "expected_total": round(expected_total, 2),
         }
 
     return grades
@@ -76,8 +79,20 @@ def analyze_total_loc(repo_path, account_mapping):
 
     repo = Repo(repo_path)
 
+    IGNORED_COMMITS_MESSAGES_KEYWORDS = [
+        "merge",
+        "Merge",
+        "Merged",
+    ]
+
     # Iterate over all commits
     for commit in repo.iter_commits():
+        # Skip ignored commits
+        if any(
+            keyword in commit.message for keyword in IGNORED_COMMITS_MESSAGES_KEYWORDS
+        ):
+            continue
+
         # Store the total LOC changes
         total_loc["added"] += commit.stats.total["insertions"]
         total_loc["deleted"] += commit.stats.total["deletions"]
@@ -103,6 +118,14 @@ def analyze_total_loc(repo_path, account_mapping):
         per_member_data[author]["nb_commits"] += 1
         per_member_data[author]["messages"].append(commit.message)
 
+        # if commit.stats.total["lines"] > 3000:
+        #     print(f"      - {author}: {commit.hexsha}")
+        #     print(f"        Added: {commit.stats.total['insertions']}")
+        #     print(f"        Deleted: {commit.stats.total['deletions']}")
+        #     print(f"        Total: {commit.stats.total['lines']}")
+        #     print(f"        Message: {commit.message}")
+        #     print()
+
     # Sort the data by number of commits
     per_member_data = dict(
         sorted(
@@ -115,7 +138,6 @@ def analyze_total_loc(repo_path, account_mapping):
     return {
         "total": total_loc,
         "data": per_member_data,
-        "grades": calculate_grades(per_member_data),
     }
 
 
@@ -140,7 +162,78 @@ def analyze_final_loc(repo_path, account_mapping):
         final_loc[author] = 0
 
     # Calculate LOC for each file
+    unknown_authors = set()
+    files_extension = set()
+    EXCLUDED_EXTENSIONS = [
+        "json",
+        "yml",
+        "yaml",
+        "lock",
+        "mjs",
+        "txt",
+        "jpg",
+        "webp",
+        "jpeg",
+        "svg",
+        "ico",
+        "png",
+        "gif",
+        "jpeg",
+        "less",
+        "map",
+        "xml",
+        "bat",
+        "csv",
+        "pkl",
+        "xls",
+        "docx",
+        "ppt",
+        "pptx",
+        "pdf",
+        "zip",
+        "tar",
+        "gz",
+        "7z",
+        "rar",
+        "bin",
+        "exe",
+        "ttf",
+        "woff",
+        "woff2",
+        "ipynb",
+        "LICENSE",
+        "mp3",
+        "mp4",
+        "avi",
+        "mov",
+        "wav",
+        "avif",
+    ]
+    EXCLUDED_PATH = [
+        "node_modules",
+        "public/",
+        "venv",
+        "env/",
+        "dist",
+        "build",
+        ".vs",
+        ".avif",
+        "__pycache__/",
+        "assets/img/icon/",
+    ]
+    files_sizes = {}
     for file in files:
+        file_extension = file.split(".")[-1]
+        if file_extension in EXCLUDED_EXTENSIONS:
+            continue
+
+        if any(folder in file for folder in EXCLUDED_PATH):
+            continue
+
+        files_sizes[file] = 0
+
+        files_extension.add(file_extension)
+
         blame_result = subprocess.run(
             ["git", "-C", repo_path, "blame", "-w", "--line-porcelain", file],
             stdout=subprocess.PIPE,
@@ -156,6 +249,19 @@ def analyze_final_loc(repo_path, account_mapping):
                 author = account_mapping.get(author, None)
                 if author is not None:
                     final_loc[author] += 1
+                else:
+                    unknown_authors.add(author)
+                files_sizes[file] += 1
+
+    if unknown_authors:
+        print(f"Unmapped authors: {unknown_authors}")
+
+    # Display some data about the files:
+    # Sort files by size
+    # files_sizes = dict(sorted(files_sizes.items(), key=lambda item: item[1], reverse=True))
+    # for file, size in files_sizes.items():
+    #     print(f"{file}: {size}")
+    # print(f"Files extensions: {files_extension}")
 
     total_lines = sum(final_loc.values())
     final_loc_with_percentage = {
@@ -174,7 +280,10 @@ def analyze_final_loc(repo_path, account_mapping):
         )
     )
 
-    return {"total": total_lines, "data": final_loc_with_percentage}
+    return {
+        "total": total_lines,
+        "data": final_loc_with_percentage,
+    }
 
 
 def analyze_contribution_per_root_folder(repo_path, account_mapping):
@@ -289,6 +398,7 @@ def generate_loc_report(repo_path, account_mapping):
         "Total LOC": total_loc,
         "Final LOC": final_loc,
         "Root Folder LOC": root_folder_loc,
+        "Grades": calculate_grades(total_loc["data"], final_loc["data"]),
     }
 
 
