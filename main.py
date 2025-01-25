@@ -203,8 +203,8 @@ def full_run(yaml_config_file_path: str, skip_clone: bool = False):
     #     "ToMansion": "Tom Mansion"
     # }
 
-    new_members_mapping = {}
     for project_name, project_data in config["projects"].items():
+        new_members_mapping = {}
         members_mapping = project_data.get("members_mapping", {})
         for member, aliases in members_mapping.items():
             for alias in aliases:
@@ -252,6 +252,7 @@ def full_run(yaml_config_file_path: str, skip_clone: bool = False):
             project_data["repo_dir"], project_data["new_members_mapping"]
         )
 
+        project_data["loc_report"] = report
         output_file = os.path.join(loc_reports_dir, f"{project_name}_loc_report.json")
         with open(output_file, "w") as f:
             json.dump(report, f, indent=2)
@@ -265,7 +266,7 @@ def full_run(yaml_config_file_path: str, skip_clone: bool = False):
         repository_data = project_data["analysis"] | {
             "repository": project_name,
             "repository_url": project_data["url"],
-            "loc_data": report,
+            "loc_data": project_data["loc_report"],
         }
 
         report_folder_dir = os.path.join(markdown_reports_dir, project_name)
