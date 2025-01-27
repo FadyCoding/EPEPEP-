@@ -21,9 +21,9 @@ def clone_repo(repo_url, repo_dir):
         return False
 
 
-def clone_repos(repo_list, base_dir, output_file, max_threads=4):
+def clone_repos(repo_url_list: list[str], base_dir, output_file, max_threads=4):
     """
-    Clone multiple repositories listed in repo_list into base_dir using multithreading,
+    Clone multiple repositories listed in url_repo_list:list[str] into base_dir using multithreading,
     and store cloned repositories in a JSON file.
     """
     os.makedirs(base_dir, exist_ok=True)
@@ -31,7 +31,7 @@ def clone_repos(repo_list, base_dir, output_file, max_threads=4):
 
     with ThreadPoolExecutor(max_threads) as executor:
         futures = {}
-        for repo_url in repo_list:
+        for repo_url in repo_url_list:
             repo_name = repo_url.split('/')[-1].replace('.git', '')
             repo_dir = os.path.join(base_dir, repo_name)
             futures[executor.submit(clone_repo, repo_url, repo_dir)] = (repo_url, repo_dir)

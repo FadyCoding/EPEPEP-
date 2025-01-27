@@ -1,0 +1,25 @@
+projects:
+  debiai:
+    url: https://github.com/debiai/DebiAI.git
+    members_mapping:
+      Fady:
+        - FadyCoding
+        - Fady BEKKAR
+      Tom:
+        - tom.mansion
+        - Tom Mansion
+        - ToMansion
+      Macaire:
+        - MacaireM
+      Nicolas:
+        - Nicolas Leroux
+        - 0xNi
+      Theo:
+        - Theochelim
+      Raphael:
+        - raphaelbraud
+folders:
+  cloned_projects: cloned_repos
+  commit_reports: commits_reports
+  line_of_code_reports: loc_reports
+  markdown_reports: markdown_reports

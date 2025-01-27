@@ -2,13 +2,6 @@ import json
 import os
 
 
-def apply_mapping(contributor, account_mapping):
-    """
-    Apply account mapping to normalize contributor names.
-    """
-    return account_mapping.get(contributor, contributor)
-
-
 def load_loc_data(loc_dir):
     """
     Load LOC data from the specified directory.
@@ -26,7 +19,7 @@ def load_loc_data(loc_dir):
     return loc_data
 
 
-def generate_report(repo_data: dict, account_mapping):
+def generate_md_report_text(repo_data: dict, account_mapping: dict):
     """
     Generate a Markdown report from the analysis data and LOC data.
     """
@@ -40,21 +33,60 @@ def generate_report(repo_data: dict, account_mapping):
         total = loc_data.get("Total LOC", {}).get("total", {})
         report += "## Line of Codes\n"
         report += "### Count:\n"
-        report += f"- **Final LOC:** {loc_data.get('Final LOC', {}).get('total', 'N/A')}\n\n"
+        report += (
+            f"- **Final LOC:** {loc_data.get('Final LOC', {}).get('total', 'N/A')}\n\n"
+        )
         report += "### Total Committed:\n"
         report += f"- **Total Added:** {total.get('added', 'N/A')}\n"
         report += f"- **Total Removed:** {total.get('deleted', 'N/A')}\n"
-        report += f"- **Total LOC:** {total.get('total', 'N/A')}\n\n"
+        report += (
+            f"- **Total LOC:** {total.get('added', 0) - total.get('deleted', 0)}\n\n"
+        )
+        report += "### Members committed lines:\n"
+        members = loc_data.get("Total LOC", {}).get("data", {})
+        report += "| Contributor | commits | Added | Removed | Total added | Sum |\n"
+        report += "|-------------|---------|-------|---------|-------------|-----|\n"
+        for member, data in members.items():
+            mapped_member = account_mapping.get(member, None)
+            if not mapped_member:
+                continue
+            report += f"| {mapped_member} "
+            report += f"| {data.get('nb_commits', 'N/A')} "
+            report += f"| {data.get('added', 'N/A')} "
+            report += f"| {data.get('deleted', 'N/A')} "
+            report += f"| {data.get('added', 0) - data.get('deleted', 0)} "
+            report += f"| {data.get('total', 'N/A')} |\n"
+        report += "\n"
+
+        # Calculated grade
+        grades = loc_data.get("Grades", {})
+        report += "### Grade:\n"
+        report += "| Contributor | Expected nb commits | Commit grade | Expected total LOC | LOC grade | Final grade |\n"
+        report += "|-------------|---------------------|--------------|--------------------|-----------|-------------|\n"
+        for member, data in grades.items():
+            mapped_member = account_mapping.get(member, None)
+            if not mapped_member:
+                continue
+            report += f"| {mapped_member} "
+            report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
+            report += f"| {data.get('commit_grade', 'N/A')} "
+            report += f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
+            report += f"| {data.get('loc_grade', 'N/A')} "
+            report += f"| {data.get('final_grade', 'N/A')} |\n"
+        report += "\n"
 
         if "Final LOC" in loc_data and isinstance(loc_data["Final LOC"], dict):
             # Add a section for each contributor
             report += "### Contribution\n"
-            report += f"**Total Contributors:** {len(loc_data['Final LOC'])}\n\n"
+            report += "This section shows the contribution of each contributor to the final LOC of the repository (a snapshot of the repository at the time of the analysis).\n\n"
+            report += f"**Total Contributors:** {len(loc_data['Final LOC'].get('data', {}))}\n\n"
             report += "| Contributor | Lines | Percent |\n"
             report += "|-------------|-------|---------|\n"
 
             for contributor in loc_data["Final LOC"].get("data", {}):
-                mapped_contributor = apply_mapping(contributor, account_mapping)
+                mapped_contributor = account_mapping.get(contributor, None)
+                if not mapped_contributor:
+                    continue
                 final_loc_data = loc_data["Final LOC"]["data"]
                 lines = final_loc_data[contributor].get("lines", "N/A")
                 percent = final_loc_data[contributor].get("percentage", None)
@@ -69,7 +101,9 @@ def generate_report(repo_data: dict, account_mapping):
     if "members_commits" in repo_data:
         huge_commits = []
         for member in repo_data["members_commits"]:
-            mapped_member = apply_mapping(member, account_mapping)
+            mapped_member = account_mapping.get(member, None)
+            if not mapped_member:
+                continue
             for commit in repo_data["members_commits"][member]:
                 if commit["lines_added"] >= 3000:
                     commit["member"] = mapped_member
@@ -87,18 +121,17 @@ def generate_report(repo_data: dict, account_mapping):
     return report
 
 
-def generate_contributor_report(repo_data: dict, contributor: str, account_mapping):
+def generate_contributor_report(repo_data: dict, contributor: str):
     """
     Generate a detailed Markdown report for a specific contributor.
     """
-    mapped_contributor = apply_mapping(contributor, account_mapping)
     loc_data = repo_data["loc_data"]
     final_loc_data = loc_data.get("Final LOC", {}).get("data", {}).get(contributor, {})
 
     report = (
         f"<- back to [Repository Report](../{repo_data['repository']}_report.md)\n\n"
     )
-    report += f"# {mapped_contributor} Contribution Report\n"
+    report += f"# {contributor} Contribution Report\n"
 
     if final_loc_data:
         report += f"**Repository:** {repo_data['repository']}\n\n"
@@ -134,7 +167,37 @@ def generate_contributor_report(repo_data: dict, contributor: str, account_mappi
 
 
 def generate_md_report(
-    repository_data: list[dict], account_mapping: dict, output_dir: str
+    repository_name: str, repository_data: dict, account_mapping: dict, output_dir: str
+):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    report = generate_md_report_text(repository_data, account_mapping)
+    output_file = os.path.join(output_dir, f"{repository_name}_report.md")
+    with open(output_file, "w") as file:
+        file.write(report)
+
+    contributors = repository_data["loc_data"].get("Final LOC", {}).get("data", {})
+    if contributors:
+        contributors_dir = os.path.join(output_dir, "contributors")
+        if not os.path.exists(contributors_dir):
+            os.makedirs(contributors_dir)
+
+        for contributor in contributors:
+            print(f" - Generating report for {contributor}...")
+            contributor_report = generate_contributor_report(
+                repository_data, contributor
+            )
+            if contributor_report:
+                contributor_file = os.path.join(
+                    contributors_dir, f"{contributor.replace(' ', '_')}_report.md"
+                )
+                with open(contributor_file, "w") as f:
+                    f.write(contributor_report)
+
+
+def generate_md_reports(
+    repository_data_list: list[dict], account_mapping: dict, output_dir: str
 ):
     """
     Generate Markdown reports for repositories and contributors.
@@ -142,31 +205,8 @@ def generate_md_report(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    for repo_data in repository_data:
+    for repo_data in repository_data_list:
         repo_name = repo_data["repository"]
-        print(f"Generating report for {repo_name}...")
-
         repo_dir = os.path.join(output_dir, repo_name)
-        if not os.path.exists(repo_dir):
-            os.makedirs(repo_dir)
-
-        report = generate_report(repo_data, account_mapping)
-        output_file = os.path.join(repo_dir, f"{repo_name}_report.md")
-        with open(output_file, "w") as file:
-            file.write(report)
-
-        contributors = repo_data["loc_data"].get("Final LOC", {}).get("data", {})
-        if contributors:
-            contributors_dir = os.path.join(repo_dir, "contributors")
-            if not os.path.exists(contributors_dir):
-                os.makedirs(contributors_dir)
-
-            for contributor in contributors:
-                print(f" - Generating report for {contributor}...")
-                contributor_report = generate_contributor_report(repo_data, contributor, account_mapping)
-                if contributor_report:
-                    contributor_file = os.path.join(
-                        contributors_dir, f"{contributor.replace(' ', '_')}_report.md"
-                    )
-                    with open(contributor_file, "w") as f:
-                        f.write(contributor_report)
+        print(f"Generating report for {repo_name}...")
+        generate_md_report(repo_name, repo_data, account_mapping, repo_dir)

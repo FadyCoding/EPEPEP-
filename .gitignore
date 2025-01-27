@@ -13,3 +13,4 @@ commit_messages.txt
 node_modules/*
 flake8_report.txt
 .vscode/
+setup.cfg
