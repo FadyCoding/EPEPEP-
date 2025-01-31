@@ -101,6 +101,32 @@ def get_commit_per_member(repo, account_mapping):
     return members_commits
 
 
+def generate_commits_distribution_plot(repo_analysis, output_file):
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    # Processes commit log data into a DataFrame.
+    data = []
+    for entry in repo_analysis["commit_dates"]:
+        author, timestamp = entry
+        # Convert "2022-03-07 17:41:37+01:00' to '2022-03'
+        month = pd.to_datetime(timestamp).strftime("%Y-%m")
+        data.append((month, author))
+
+    df = pd.DataFrame(data, columns=["Month", "Author"])
+
+    # Generates a bar plot of commits per contributor per month
+    commit_counts = df.groupby(["Month", "Author"]).size().unstack(fill_value=0)
+    commit_counts.plot(kind="bar", stacked=True, figsize=(12, 6), colormap="Dark2", width=0.8)
+    plt.title("Commits per Contributor per Month")
+    plt.xlabel("Month")
+    plt.ylabel("Number of Commits")
+    plt.legend(title="Contributor", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(output_file)
+
+
 def analyze_commits(repo_dir, account_mapping):
     """
     Analyze commit activity for a given repository, applying account mapping.

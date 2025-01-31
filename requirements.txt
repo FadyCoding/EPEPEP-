@@ -4,3 +4,5 @@ rich==13.7.0
 pandas==2.1.4            
 numpy==1.26.3            
 pytest==7.4.3            
+pyyaml==6.0.2
+matplotlib==3.10.0
