@@ -106,18 +106,22 @@ def generate_commits_distribution_plot(repo_analysis, output_file):
     import matplotlib.pyplot as plt
 
     # Processes commit log data into a DataFrame.
-    data = []
+    monthly_data = []
+    yearly_data = []
     for entry in repo_analysis["commit_dates"]:
         author, timestamp = entry
         # Convert "2022-03-07 17:41:37+01:00' to '2022-03'
         month = pd.to_datetime(timestamp).strftime("%Y-%m")
-        data.append((month, author))
+        monthly_data.append((month, author))
+        year = pd.to_datetime(timestamp).strftime("%Y")
+        yearly_data.append((year, author))
 
-    df = pd.DataFrame(data, columns=["Month", "Author"])
+    monthly_df = pd.DataFrame(monthly_data, columns=["Month", "Author"])
+    yearly_df = pd.DataFrame(yearly_data, columns=["Year", "Author"])
 
     # Generates a bar plot of commits per contributor per month
-    commit_counts = df.groupby(["Month", "Author"]).size().unstack(fill_value=0)
-    commit_counts.plot(kind="bar", stacked=True, figsize=(12, 6), colormap="Dark2", width=0.8)
+    commit_counts = monthly_df.groupby(["Month", "Author"]).size().unstack(fill_value=0)
+    commit_counts.plot(kind="bar", stacked=True, figsize=(16, 6), colormap="Dark2", width=0.8)
     plt.title("Commits per Contributor per Month")
     plt.xlabel("Month")
     plt.ylabel("Number of Commits")
@@ -125,6 +129,17 @@ def generate_commits_distribution_plot(repo_analysis, output_file):
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(output_file)
+
+    # Generates a bar plot of commits per contributor per year
+    commit_counts = yearly_df.groupby(["Year", "Author"]).size().unstack(fill_value=0)
+    commit_counts.plot(kind="bar", stacked=True, figsize=(16, 3), colormap="Dark2", width=0.8)
+    plt.title("Commits per Contributor per Year")
+    plt.xlabel("Year")
+    plt.ylabel("Number of Commits")
+    plt.legend(title="Contributor", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(output_file.replace(".png", "_yearly.png"))
 
 
 def analyze_commits(repo_dir, account_mapping):
