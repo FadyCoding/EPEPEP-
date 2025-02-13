@@ -1,6 +1,6 @@
 import argparse
 from src.clone_repo import clone_repo, clone_repos
-from src.analyze_commits import analyze_commits, analyze_multiple_repos_from_json
+from src.analyze_commits import analyze_commits, analyze_multiple_repos_from_json, generate_commits_distribution_plot
 from src.analyze_contributions import generate_reports, generate_loc_report
 from src.generate_md_report import generate_md_reports, generate_md_report
 import os
@@ -294,6 +294,11 @@ def full_run(yaml_config_file_path: str, skip_clone: bool = False):
         with open(output_file, "w") as f:
             json.dump(analysis, f, indent=2)
 
+        # Generate commits distribution plot
+        activity_image_path = os.path.join(commits_reports_dir, f"{project_name}_plot.png")
+        generate_commits_distribution_plot(analysis, activity_image_path)
+        project_data["activity_image_path"] = activity_image_path
+
     # Generate LOC reports
     print("Analyzing lines of code...")
     loc_reports_dir = config["folders"]["line_of_code_reports"]
@@ -319,6 +324,7 @@ def full_run(yaml_config_file_path: str, skip_clone: bool = False):
             "repository": project_name,
             "repository_url": project_data["url"],
             "loc_data": project_data["loc_report"],
+            "activity_image_path": project_data["activity_image_path"],
         }
 
         report_folder_dir = os.path.join(markdown_reports_dir, project_name)

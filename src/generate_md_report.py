@@ -27,6 +27,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
     report += f"**Repository URL:** {repo_data.get('repository_url', 'N/A')}\n\n"
     report += "## Commits\n"
     report += f"**Total Commits:** {repo_data.get('total_commits', 'N/A')}\n\n"
+    report += f"![Activity](../../{repo_data.get('activity_image_path')})\n\n"
 
     if "loc_data" in repo_data:
         loc_data = repo_data["loc_data"]
