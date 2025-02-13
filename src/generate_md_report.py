@@ -71,7 +71,9 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
             report += f"| {mapped_member} "
             report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
             report += f"| {data.get('commit_grade', 'N/A')} "
-            report += f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
+            report += (
+                f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
+            )
             report += f"| {data.get('loc_grade', 'N/A')} "
             report += f"| {data.get('final_grade', 'N/A')} |\n"
         report += "\n"
@@ -155,13 +157,36 @@ def generate_contributor_report(repo_data: dict, contributor: str):
             )
         report += "\nThe folder percentage is calculated based on the total Commits of each contributor that has contributed to the said folder.\n"
 
+    # Add biggest commits
     if repo_data.get("members_commits"):
-        report += "## Biggest Commits\n"
-        report += "| Commit | Message | Lines Added | Lines Deleted |\n"
-        report += "|--------|---------|-------------|---------------|\n"
+        report += "\n## Biggest commits\n"
+        report += "| Commit | Message | Lines Added | Lines Deleted | Author |\n"
+        report += (
+            "|--------|---------|-------------|---------------|-----------------|\n"
+        )
         for commit in repo_data["members_commits"].get(contributor, [])[:30]:
             commit["message"] = commit["message"].replace("\n", "")
-            report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['message']} | +{commit['lines_added']} | -{commit['lines_deleted']} |\n"
+            report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['message']} | +{commit['lines_added']} | -{commit['lines_deleted']} | {commit['original_author']} |\n"
+        report += "\n"
+
+    # Add ignored commits
+    if repo_data.get("ignored_commits"):
+        contributor_ignored_commits = repo_data["ignored_commits"].get(contributor, [])
+        report += "\n## Ignored commits\n"
+        if len(contributor_ignored_commits) > 0:
+            report += "| Commit | Message | Lines Added | Reason | Author |\n"
+            report += "|--------|---------|-------------|--------|--------|\n"
+            for commit in contributor_ignored_commits:
+                ignored_reason = ""
+                if commit["because_multiple_parents"]:
+                    ignored_reason += "Multiple parents. "
+                if commit["because_merge"]:
+                    ignored_reason += "Merge"
+
+                commit["message"] = commit["message"].replace("\n", "")
+                report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['message']} | {commit['lines_added']} | {ignored_reason} | {commit['original_author']} |\n"
+        else:
+            report += "No ignored commits for this contributor.\n"
         report += "\n"
 
     return report
