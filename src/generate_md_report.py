@@ -25,6 +25,24 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
     """
     report = f"# {repo_data['repository']} Analysis Report\n"
     report += f"**Repository URL:** {repo_data.get('repository_url', 'N/A')}\n\n"
+
+    # Members
+    report += "## Members\n"
+    unique_members = {}
+    for account, name in account_mapping.items():
+        if name not in unique_members:
+            unique_members[name] = []
+        unique_members[name].append(account)
+    unique_members = dict(sorted(unique_members.items(), key=lambda x: x[0]))
+        
+    report += f"**Total Members:** {len(account_mapping)}\n\n"
+    report += "| Name | Git and GitHub Accounts |\n"
+    report += "|------|-------------------------|\n"
+    for member, accounts in unique_members.items():
+        accounts_txt = "<br>".join(accounts)
+        report += f"| [{member}](./contributors/{member.replace(' ', '_')}_report.md) | {accounts_txt} |\n"
+
+    # Commits data
     report += "## Commits\n"
     report += f"**Total Commits:** {repo_data.get('total_commits', 'N/A')}\n\n"
     report += f"![Activity](../../{repo_data.get('activity_image_path')})\n\n"
@@ -51,7 +69,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
             mapped_member = account_mapping.get(member, None)
             if not mapped_member:
                 continue
-            report += f"| {mapped_member} "
+            report += f"| [{mapped_member}](./contributors/{mapped_member.replace(' ', '_')}_report.md) "
             report += f"| {data.get('nb_commits', 'N/A')} "
             report += f"| {data.get('added', 'N/A')} "
             report += f"| {data.get('deleted', 'N/A')} "
@@ -68,7 +86,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
             mapped_member = account_mapping.get(member, None)
             if not mapped_member:
                 continue
-            report += f"| {mapped_member} "
+            report += f"| [{mapped_member}](./contributors/{mapped_member.replace(' ', '_')}_report.md) "
             report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
             report += f"| {data.get('commit_grade', 'N/A')} "
             report += (
