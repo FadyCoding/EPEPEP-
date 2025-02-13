@@ -121,6 +121,22 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
             report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['member']} | {commit['message']} | +{commit['lines_added']} | -{commit['lines_deleted']} |\n"
         report += "\n"
 
+    # Add ignored files
+    ignored_files = loc_data.get("Final LOC", {}).get("ignored_files", None)
+    if ignored_files:
+        report += "## Ignored folder or file extensions\n"
+        report += "| File | Reason | Number | Examples |\n"
+        report += "|------|--------|--------|----------|\n"
+        for folder_or_extension, content in ignored_files.items():
+            examples = ""
+            if len(content.get("files", [])) > 0:
+                examples = "- "
+            examples += "<br> - ".join(content.get("files", [])[:5])
+            if len(content.get("files", [])) > 5:
+                examples += "<br>..."
+            report += f"| {folder_or_extension} | {content.get('reason', '?')} | {len(content.get('files', []))} | {examples} |\n"
+        report += "\n"
+
     return report
 
 
@@ -143,7 +159,7 @@ def generate_contributor_report(repo_data: dict, contributor: str):
         report += f"**Percentage:** {final_loc_data.get('percentage', 'N/A'):.2f}%\n\n"
 
         # Add per root folder contribution
-        report += "### Contribution by Root Folder\n"
+        report += "### Contribution by Folder\n"
         per_folder_data = loc_data["Root Folder LOC"].get(contributor, {})
         report += "| Folder | Commits | Percent |\n"
         report += "|--------|---------|---------|\n"
@@ -156,6 +172,24 @@ def generate_contributor_report(repo_data: dict, contributor: str):
                 f"| {folder} | **{commits}** / {total_folder_commits} | {percent}% |\n"
             )
         report += "\nThe folder percentage is calculated based on the total Commits of each contributor that has contributed to the said folder.\n"
+
+    # Add per file contribution
+    per_file_data = (
+        loc_data.get("Final LOC", {}).get("contributed_files", {}).get(contributor, {})
+    )
+    if per_file_data:
+        report += "## Contribution by File\n"
+        report += "| File | Total contributed lines | Percent |\n"
+        report += "|------|-------------------------|---------|\n"
+        for file, data in list(per_file_data.items())[0:30]:
+            total_contributed = data.get("lines", "N/A")
+            percent = data.get("percentage", None)
+            percent = f"{percent:.2f}" if percent is not None else "N/A"
+            report += f"| {file} | {total_contributed} | {percent}% |\n"
+        if len(per_file_data) > 30:
+            report += f"| ... | ... | ... |\n"
+            report += f"30 out of {len(per_file_data)} files shown.\n"
+        report += "\n"
 
     # Add biggest commits
     if repo_data.get("members_commits"):

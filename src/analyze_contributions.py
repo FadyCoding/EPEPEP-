@@ -1,6 +1,7 @@
 import os
 import subprocess
 import json
+import math
 from collections import defaultdict
 from git import Repo
 
@@ -155,11 +156,14 @@ def analyze_final_loc(repo_path, account_mapping):
     files = result.stdout.splitlines()
 
     final_loc = defaultdict(int)
+    contributed_files = {}
+    ignored_files = {}
 
     # Add members that are in the mapping
     # (so that even members with no LOC are included in the final report)
     for author in account_mapping.values():
         final_loc[author] = 0
+        contributed_files[author] = {}
 
     # Calculate LOC for each file
     unknown_authors = set()
@@ -223,17 +227,36 @@ def analyze_final_loc(repo_path, account_mapping):
     ]
     files_sizes = {}
     for file in files:
+        # Check if the file is excluded from the analysis
         file_extension = file.split(".")[-1]
         if file_extension in EXCLUDED_EXTENSIONS:
+            if file_extension not in ignored_files:
+                ignored_files[file_extension] = {
+                    "files": set(),
+                    "reason": "Extension",
+                }
+            ignored_files[file_extension]["files"].add(file)
             continue
 
-        if any(folder in file for folder in EXCLUDED_PATH):
+        # Check if the file is in an excluded folder
+        excluded_folder = None
+        for folder in EXCLUDED_PATH:
+            if folder in file:
+                excluded_folder = folder
+                break
+
+        if excluded_folder:
+            if "path" not in ignored_files:
+                ignored_files[excluded_folder] = {
+                    "files": set(),
+                    "reason": "Path",
+                }
+            ignored_files[excluded_folder]["files"].add(file)
             continue
 
+        # Count the LOC for each file
         files_sizes[file] = 0
-
         files_extension.add(file_extension)
-
         blame_result = subprocess.run(
             ["git", "-C", repo_path, "blame", "-w", "--line-porcelain", file],
             stdout=subprocess.PIPE,
@@ -249,6 +272,9 @@ def analyze_final_loc(repo_path, account_mapping):
                 author = account_mapping.get(author, None)
                 if author is not None:
                     final_loc[author] += 1
+                    if file not in contributed_files[author]:
+                        contributed_files[author][file] = 0
+                    contributed_files[author][file] += 1
                 else:
                     unknown_authors.add(author)
                 files_sizes[file] += 1
@@ -280,9 +306,42 @@ def analyze_final_loc(repo_path, account_mapping):
         )
     )
 
+    # Add the percentage of LOC for each file
+    for author, files in contributed_files.items():
+        for file, loc in files.items():
+            contributed_files[author][file] = {
+                "lines": loc,
+                "percentage": (
+                    math.ceil((loc / files_sizes[file]) * 100) if files_sizes[file] > 0 else 0
+                ),
+            }
+
+        # Sort contributed files by the number of lines
+        contributed_files[author] = dict(
+            sorted(
+                contributed_files[author].items(),
+                key=lambda item: item[1]["lines"],
+                reverse=True,
+            )
+        )
+
+    # Sort ignored files and extensions by the number of files
+    ignored_files = dict(
+        sorted(
+            ignored_files.items(),
+            key=lambda item: len(item[1]["files"]),
+            reverse=True,
+        )
+    )
+    # Convert sets to lists
+    for key, value in ignored_files.items():
+        ignored_files[key]["files"] = list(value["files"])
+
     return {
         "total": total_lines,
         "data": final_loc_with_percentage,
+        "contributed_files": contributed_files,
+        "ignored_files": ignored_files,
     }
 
 
