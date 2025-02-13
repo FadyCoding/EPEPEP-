@@ -143,6 +143,58 @@ def generate_md(
     generate_md_reports(repository_data, account_mapping, output_dir)
 
 
+def compile_grades(loc_reports_dir: str, output_csv_file: str):
+    import math
+
+    # Load LOC reports
+    loc_reports = {}
+    for file_name in os.listdir(loc_reports_dir):
+        if file_name.endswith(".json"):
+            try:
+                with open(os.path.join(loc_reports_dir, file_name), "r") as file:
+                    loc_report = json.load(file)
+                    loc_reports[file_name.replace("_loc_report.json", "")] = loc_report
+            except Exception as e:
+                print(f"Error reading LOC report '{file_name}': {e}")
+
+
+    # Compile grades
+    grades = []
+    for repo_name, loc_report in loc_reports.items():
+        loc_grades = loc_report["Grades"]
+        for member, data in loc_grades.items():
+            print(f"Member: {member}")
+            grades.append(
+                {
+                    "Repository": repo_name,
+                    "First Name": member.split(".")[0],
+                    "Last Name": member.split(".")[-1],
+                    "LOC Added": data["total"],
+                    "LOC expected": data["expected_total"],
+                    "LOC grade": data["loc_grade"],
+                    "Commits": data["nb_commits"],
+                    "Commits expected": data["expected_nb_commits"],
+                    "Commit grade": data["commit_grade"],
+                    "Total grade": data["final_grade"],
+                    "Final grade": math.ceil(data["final_grade"]),
+                    "Comments": f"{data['total']} out of {math.floor(data['expected_total'])} lines of code added ({data['loc_grade']}/20), {data['nb_commits']} out of {math.floor(data['expected_nb_commits'])} commits ({data['commit_grade']}/20). Grade: {data['final_grade']}/20",
+                }
+            )
+
+    print(f"Compiled {len(grades)} grades.")
+    print(grades)
+
+    # Save grades to CSV
+    try:
+        import pandas as pd
+
+        df = pd.DataFrame(grades)
+        df.to_csv(output_csv_file, index=False, sep=";")
+        print(f"Grades saved to '{output_csv_file}'")
+    except Exception as e:
+        print(f"Error saving grades to CSV: {e}")
+
+
 def full_run(yaml_config_file_path: str, skip_clone: bool = False):
     # Load configuration from YAML file
     try:
@@ -395,6 +447,22 @@ def main():
         "-m", "--mapping-file", help="Optional JSON file containing account mapping."
     )
 
+    # Subcommand: Compile grades
+    # python main.py compile -p ./data/loc_reports -o ./data/grades.csv
+    compile_parser = subparsers.add_parser("compile", help="Compile grades.")
+    compile_parser.add_argument(
+        "-p",
+        "--path",
+        required=True,
+        help="Path to the directory containing LOC reports.",
+    )
+    compile_parser.add_argument(
+        "-o",
+        "--output",
+        default="./grades.csv",
+        help="Output CSV file for grades.",
+    )
+
     # Read user command and arguments
     args = parser.parse_args()
 
@@ -419,7 +487,9 @@ def main():
             args.loc_dir,
             args.output_dir,
         )
-
+    elif args.command == "compile":
+        print("Compiling grades...")
+        compile_grades(args.path, args.output)
     else:
         parser.print_help()
 
