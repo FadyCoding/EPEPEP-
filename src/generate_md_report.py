@@ -28,6 +28,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
 
     # Members
     report += "## Members\n"
+    report += "The members of the repository and their associated Git and GitHub accounts.\n\n"
     unique_members = {}
     for account, name in account_mapping.items():
         if name not in unique_members:
@@ -35,7 +36,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
         unique_members[name].append(account)
     unique_members = dict(sorted(unique_members.items(), key=lambda x: x[0]))
         
-    report += f"**Total Members:** {len(account_mapping)}\n\n"
+    report += f"**Total Members:** {len(unique_members)}\n\n"
     report += "| Name | Git and GitHub Accounts |\n"
     report += "|------|-------------------------|\n"
     for member, accounts in unique_members.items():
@@ -44,6 +45,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
 
     # Commits data
     report += "## Commits\n"
+    report += "The commits data of the repository.\n\n"
     report += f"**Total Commits:** {repo_data.get('total_commits', 'N/A')}\n\n"
     report += f"![Activity](../../{repo_data.get('activity_image_path')})\n\n"
 
@@ -51,7 +53,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
         loc_data = repo_data["loc_data"]
         total = loc_data.get("Total LOC", {}).get("total", {})
         report += "## Line of Codes\n"
-        report += "### Count:\n"
+        report += "This section shows data about the line of codes of the repository.\n\n"
         report += (
             f"- **Final LOC:** {loc_data.get('Final LOC', {}).get('total', 'N/A')}\n\n"
         )
@@ -62,6 +64,7 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
             f"- **Total LOC:** {total.get('added', 0) - total.get('deleted', 0)}\n\n"
         )
         report += "### Members committed lines:\n"
+        report += "This section shows, for each contributor, the number of commits, added lines, removed lines, total added lines, and the total LOC. This is calculated by iterating over the commits of the repository and summing the added and removed lines of each contributor.\n\n"
         members = loc_data.get("Total LOC", {}).get("data", {})
         report += "| Contributor | commits | Added | Removed | Total added | Sum |\n"
         report += "|-------------|---------|-------|---------|-------------|-----|\n"
@@ -77,29 +80,11 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
             report += f"| {data.get('total', 'N/A')} |\n"
         report += "\n"
 
-        # Calculated grade
-        grades = loc_data.get("Grades", {})
-        report += "### Grade:\n"
-        report += "| Contributor | Expected nb commits | Commit grade | Expected total LOC | LOC grade | Final grade |\n"
-        report += "|-------------|---------------------|--------------|--------------------|-----------|-------------|\n"
-        for member, data in grades.items():
-            mapped_member = account_mapping.get(member, None)
-            if not mapped_member:
-                continue
-            report += f"| [{mapped_member}](./contributors/{mapped_member.replace(' ', '_')}_report.md) "
-            report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
-            report += f"| {data.get('commit_grade', 'N/A')} "
-            report += (
-                f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
-            )
-            report += f"| {data.get('loc_grade', 'N/A')} "
-            report += f"| {data.get('final_grade', 'N/A')} |\n"
-        report += "\n"
-
         if "Final LOC" in loc_data and isinstance(loc_data["Final LOC"], dict):
             # Add a section for each contributor
             report += "### Contribution\n"
-            report += "This section shows the contribution of each contributor to the final LOC of the repository (a snapshot of the repository at the time of the analysis).\n\n"
+            report += "This section shows the contribution of each contributor to the final LOC of the repository (a snapshot of the repository at the time of the analysis).\n"
+            report += "Those lines are calculated by iterating over the code files of the repository and summing the lines of code added by each contributor, with git blame.\n\n"
             report += f"**Total Contributors:** {len(loc_data['Final LOC'].get('data', {}))}\n\n"
             report += "| Contributor | Lines | Percent |\n"
             report += "|-------------|-------|---------|\n"
@@ -118,6 +103,26 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
                 report += f"| [{mapped_contributor}]({contributor_report_file}) | {lines} | {percent}% |\n"
             report += "\n"
 
+        # Calculated grade
+        grades = loc_data.get("Grades", {})
+        report += "### Calculated grade:\n"
+        report += "This section shows the calculated grade for each contributor based on the expected number of commits and the number of lines of code modified at the last state of the repository.\n\n"
+        report += "| Contributor | Expected nb commits | Commit grade | Expected total LOC | LOC grade | Final grade |\n"
+        report += "|-------------|---------------------|--------------|--------------------|-----------|-------------|\n"
+        for member, data in grades.items():
+            mapped_member = account_mapping.get(member, None)
+            if not mapped_member:
+                continue
+            report += f"| [{mapped_member}](./contributors/{mapped_member.replace(' ', '_')}_report.md) "
+            report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
+            report += f"| {data.get('commit_grade', 'N/A')} "
+            report += (
+                f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
+            )
+            report += f"| {data.get('loc_grade', 'N/A')} "
+            report += f"| {data.get('final_grade', 'N/A')} |\n"
+        report += "\n"
+
     # Add huge commits
     if "members_commits" in repo_data:
         huge_commits = []
@@ -132,6 +137,8 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
         huge_commits.sort(key=lambda x: x["lines_added"], reverse=True)
 
         report += "## Huge Commits (3000+ lines added)\n"
+        report += "This section shows the commits with 3000+ lines added, is a good indicator of a possible staging errors made during the commit.\n"
+        report += "It's likely that the lines modified in these commits where ignored in the final LOC calculation.\n\n"
         report += "| Commit | Contributor | Message | Lines Added | Lines Deleted |\n"
         report += "|--------|-------------|---------|-------------|---------------|\n"
         for commit in huge_commits:
@@ -143,6 +150,8 @@ def generate_md_report_text(repo_data: dict, account_mapping: dict):
     ignored_files = loc_data.get("Final LOC", {}).get("ignored_files", None)
     if ignored_files:
         report += "## Ignored folder or file extensions\n"
+        report += "This section shows the ignored files or folders in the final LOC calculation.\n"
+        report += "These files or folders were ignored because they are not considered as code files.\n\n"
         report += "| File | Reason | Number | Examples |\n"
         report += "|------|--------|--------|----------|\n"
         for folder_or_extension, content in ignored_files.items():
@@ -173,11 +182,14 @@ def generate_contributor_report(repo_data: dict, contributor: str):
     if final_loc_data:
         report += f"**Repository:** {repo_data['repository']}\n\n"
         report += "## Line of Codes\n"
-        report += f"**Total Lines:** {final_loc_data.get('lines', 'N/A')}\n"
+        report += f"This section shows data about {contributor}'s line of codes contribution to the repository.\n\n"
+        report += f"**Total Lines:** {final_loc_data.get('lines', 'N/A')}\n\n"
         report += f"**Percentage:** {final_loc_data.get('percentage', 'N/A'):.2f}%\n\n"
 
         # Add per root folder contribution
         report += "### Contribution by Folder\n"
+        report += "This section shows the contribution, in number of commits, of the contributor to each root folder of the repository. The percentage is calculated based on the total Commits made by each contributor.\n"
+        report += "It is a good indicator of the contributor's activity in the different parts of the repository.\n\n"
         per_folder_data = loc_data["Root Folder LOC"].get(contributor, {})
         report += "| Folder | Commits | Percent |\n"
         report += "|--------|---------|---------|\n"
@@ -197,6 +209,7 @@ def generate_contributor_report(repo_data: dict, contributor: str):
     )
     if per_file_data:
         report += "## Contribution by File\n"
+        report += "This section shows the contribution of the contributor to each file of the repository. The percentage is calculated based on the contributed lines of each contributor.\n\n"
         report += "| File | Total contributed lines | Percent |\n"
         report += "|------|-------------------------|---------|\n"
         for file, data in list(per_file_data.items())[0:30]:
@@ -212,6 +225,7 @@ def generate_contributor_report(repo_data: dict, contributor: str):
     # Add biggest commits
     if repo_data.get("members_commits"):
         report += "\n## Biggest commits\n"
+        report += "This section shows the commits of the contributor sorted by the number of lines added.\n"
         report += "| Commit | Message | Lines Added | Lines Deleted | Author |\n"
         report += (
             "|--------|---------|-------------|---------------|-----------------|\n"
@@ -225,6 +239,10 @@ def generate_contributor_report(repo_data: dict, contributor: str):
     if repo_data.get("ignored_commits"):
         contributor_ignored_commits = repo_data["ignored_commits"].get(contributor, [])
         report += "\n## Ignored commits\n"
+        report += "This section shows the commits of the contributor that were ignored in the total number of commits calculation.\n"
+        report += "Those commits were ignored because merge commits aren't really a contribution to the codebase.\n"
+        report += "'Multiple parents' means that the commit has multiple parents, which is a sign of a merge commit.\n"
+        report += "If 'Merge' is present, it means that the commit contains the word 'Merge' in the commit message, a reasonable indicator of a merge commit.\n\n" 
         if len(contributor_ignored_commits) > 0:
             report += "| Commit | Message | Lines Added | Reason | Author |\n"
             report += "|--------|---------|-------------|--------|--------|\n"
