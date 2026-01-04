@@ -139,6 +139,7 @@ def analyze_commits(repo_dir, account_mapping):
 
         if not_found_members:
             print(f"   Account mapping not found for: {', '.join(not_found_members)}")
+            exit(1)
 
         return {
             "repository": repo_title,

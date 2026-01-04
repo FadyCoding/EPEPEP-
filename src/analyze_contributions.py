@@ -349,6 +349,10 @@ def analyze_contribution_per_root_folder(repo_path, account_mapping):
             files = result.stdout.splitlines()[1:]
 
             for file in files:
+                # Skip files at the root level (not in any folder)
+                if "/" not in file:
+                    continue
+
                 root_folder = file.split("/", 1)[0]
                 if not root_folder:
                     continue

@@ -1,5 +1,9 @@
 import json
 import os
+from src.generate_timeline import (
+    generate_commit_timeline,
+    generate_contribution_summary,
+)
 
 
 def load_loc_data(loc_dir):
@@ -19,83 +23,99 @@ def load_loc_data(loc_dir):
     return loc_data
 
 
-def generate_md_report_text(repo_data: dict, account_mapping: dict):
+def generate_md_report_text(
+    repo_data: dict,
+    account_mapping: dict,
+    timeline_image_path: str | None = None,
+    contribution_summary_path: str | None = None,
+):
     """
     Generate a Markdown report from the analysis data and LOC data.
     """
     report = f"# {repo_data['repository']} Analysis Report\n"
     report += f"**Repository URL:** {repo_data.get('repository_url', 'N/A')}\n\n"
+
+    # Add timeline image if available
+    if timeline_image_path:
+        report += "## Commit Timeline\n"
+        report += f"![Commit Timeline]({timeline_image_path})\n\n"
+
+    # Add contribution summary if available
+    if contribution_summary_path:
+        report += "## Contribution Summary\n"
+        report += f"![Contribution Summary]({contribution_summary_path})\n\n"
+
     report += "## Commits\n"
     report += f"**Total Commits:** {repo_data.get('total_commits', 'N/A')}\n\n"
 
-    if "loc_data" in repo_data:
-        loc_data = repo_data["loc_data"]
-        total = loc_data.get("Total LOC", {}).get("total", {})
-        report += "## Line of Codes\n"
-        report += "### Count:\n"
-        report += (
-            f"- **Final LOC:** {loc_data.get('Final LOC', {}).get('total', 'N/A')}\n\n"
-        )
-        report += "### Total Committed:\n"
-        report += f"- **Total Added:** {total.get('added', 'N/A')}\n"
-        report += f"- **Total Removed:** {total.get('deleted', 'N/A')}\n"
-        report += (
-            f"- **Total LOC:** {total.get('added', 0) - total.get('deleted', 0)}\n\n"
-        )
-        report += "### Members committed lines:\n"
-        members = loc_data.get("Total LOC", {}).get("data", {})
-        report += "| Contributor | commits | Added | Removed | Total added | Sum |\n"
-        report += "|-------------|---------|-------|---------|-------------|-----|\n"
-        for member, data in members.items():
-            mapped_member = account_mapping.get(member, None)
-            if not mapped_member:
-                continue
-            report += f"| {mapped_member} "
-            report += f"| {data.get('nb_commits', 'N/A')} "
-            report += f"| {data.get('added', 'N/A')} "
-            report += f"| {data.get('deleted', 'N/A')} "
-            report += f"| {data.get('added', 0) - data.get('deleted', 0)} "
-            report += f"| {data.get('total', 'N/A')} |\n"
-        report += "\n"
+    # if "loc_data" in repo_data:
+    #     loc_data = repo_data["loc_data"]
+    #     total = loc_data.get("Total LOC", {}).get("total", {})
+    #     report += "## Line of Codes\n"
+    #     report += "### Count:\n"
+    #     report += (
+    #         f"- **Final LOC:** {loc_data.get('Final LOC', {}).get('total', 'N/A')}\n\n"
+    #     )
+    #     report += "### Total Committed:\n"
+    #     report += f"- **Total Added:** {total.get('added', 'N/A')}\n"
+    #     report += f"- **Total Removed:** {total.get('deleted', 'N/A')}\n"
+    #     report += (
+    #         f"- **Total LOC:** {total.get('added', 0) - total.get('deleted', 0)}\n\n"
+    #     )
+    #     report += "### Members committed lines:\n"
+    #     members = loc_data.get("Total LOC", {}).get("data", {})
+    #     report += "| Contributor | commits | Added | Removed | Total added | Sum |\n"
+    #     report += "|-------------|---------|-------|---------|-------------|-----|\n"
+    #     for member, data in members.items():
+    #         mapped_member = account_mapping.get(member, None)
+    #         if not mapped_member:
+    #             continue
+    #         report += f"| {mapped_member} "
+    #         report += f"| {data.get('nb_commits', 'N/A')} "
+    #         report += f"| {data.get('added', 'N/A')} "
+    #         report += f"| {data.get('deleted', 'N/A')} "
+    #         report += f"| {data.get('added', 0) - data.get('deleted', 0)} "
+    #         report += f"| {data.get('total', 'N/A')} |\n"
+    #     report += "\n"
 
-        # Calculated grade
-        grades = loc_data.get("Grades", {})
-        report += "### Grade:\n"
-        report += "| Contributor | Expected nb commits | Commit grade | Expected total LOC | LOC grade | Final grade |\n"
-        report += "|-------------|---------------------|--------------|--------------------|-----------|-------------|\n"
-        for member, data in grades.items():
-            mapped_member = account_mapping.get(member, None)
-            if not mapped_member:
-                continue
-            report += f"| {mapped_member} "
-            report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
-            report += f"| {data.get('commit_grade', 'N/A')} "
-            report += f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
-            report += f"| {data.get('loc_grade', 'N/A')} "
-            report += f"| {data.get('final_grade', 'N/A')} |\n"
-        report += "\n"
+    #     # Calculated grade
+    #     grades = loc_data.get("Grades", {})
+    #     report += "### Grade:\n"
+    #     report += "| Contributor | Expected nb commits | Commit grade | Expected total LOC | LOC grade | Final grade |\n"
+    #     report += "|-------------|---------------------|--------------|--------------------|-----------|-------------|\n"
+    #     for member, data in grades.items():
+    #         mapped_member = account_mapping.get(member, None)
+    #         if not mapped_member:
+    #             continue
+    #         report += f"| {mapped_member} "
+    #         report += f"| {data.get('nb_commits', 'N/A')} / {data.get('expected_nb_commits', 'N/A')} "
+    #         report += f"| {data.get('commit_grade', 'N/A')} "
+    #         report += f"| {data.get('total', 'N/A')} / {data.get('expected_total', 'N/A')} "
+    #         report += f"| {data.get('loc_grade', 'N/A')} "
+    #         report += f"| {data.get('final_grade', 'N/A')} |\n"
+    #     report += "\n"
 
-        if "Final LOC" in loc_data and isinstance(loc_data["Final LOC"], dict):
-            # Add a section for each contributor
-            report += "### Contribution\n"
-            report += "This section shows the contribution of each contributor to the final LOC of the repository (a snapshot of the repository at the time of the analysis).\n\n"
-            report += f"**Total Contributors:** {len(loc_data['Final LOC'].get('data', {}))}\n\n"
-            report += "| Contributor | Lines | Percent |\n"
-            report += "|-------------|-------|---------|\n"
+    #     if "Final LOC" in loc_data and isinstance(loc_data["Final LOC"], dict):
+    #         # Add a section for each contributor
+    #         report += "### Contribution\n"
+    #         report += "This section shows the contribution of each contributor to the final LOC of the repository (a snapshot of the repository at the time of the analysis).\n\n"
+    #         report += f"**Total Contributors:** {len(loc_data['Final LOC'].get('data', {}))}\n\n"
+    #         report += "| Contributor | Lines | Percent |\n"
+    #         report += "|-------------|-------|---------|\n"
 
-            for contributor in loc_data["Final LOC"].get("data", {}):
-                mapped_contributor = account_mapping.get(contributor, None)
-                if not mapped_contributor:
-                    continue
-                final_loc_data = loc_data["Final LOC"]["data"]
-                lines = final_loc_data[contributor].get("lines", "N/A")
-                percent = final_loc_data[contributor].get("percentage", None)
-                percent = f"{percent:.2f}" if percent is not None else "N/A"
-                contributor_report_file = (
-                    f"./contributors/{mapped_contributor.replace(' ', '_')}_report.md"
-                )
-                report += f"| [{mapped_contributor}]({contributor_report_file}) | {lines} | {percent}% |\n"
-            report += "\n"
+    #         for contributor in loc_data["Final LOC"].get("data", {}):
+    #             mapped_contributor = account_mapping.get(contributor, None)
+    #             if not mapped_contributor:
+    #                 continue
+    #             final_loc_data = loc_data["Final LOC"]["data"]
+    #             lines = final_loc_data[contributor].get("lines", "N/A")
+    #             percent = final_loc_data[contributor].get("percentage", None)
+    #             percent = f"{percent:.2f}" if percent is not None else "N/A"
+    #             contributor_report_file = (
+    #                 f"./contributors/{mapped_contributor.replace(' ', '_')}_report.md"
+    #             )
+    #             report += f"| [{mapped_contributor}]({contributor_report_file}) | {lines} | {percent}% |\n"
+    #         report += "\n"
 
     # Add huge commits
     if "members_commits" in repo_data:
@@ -134,10 +154,10 @@ def generate_contributor_report(repo_data: dict, contributor: str):
     report += f"# {contributor} Contribution Report\n"
 
     if final_loc_data:
-        report += f"**Repository:** {repo_data['repository']}\n\n"
-        report += "## Line of Codes\n"
-        report += f"**Total Lines:** {final_loc_data.get('lines', 'N/A')}\n"
-        report += f"**Percentage:** {final_loc_data.get('percentage', 'N/A'):.2f}%\n\n"
+        # report += f"**Repository:** {repo_data['repository']}\n\n"
+        # report += "## Line of Codes\n"
+        # report += f"**Total Lines:** {final_loc_data.get('lines', 'N/A')}\n"
+        # report += f"**Percentage:** {final_loc_data.get('percentage', 'N/A'):.2f}%\n\n"
 
         # Add per root folder contribution
         report += "### Contribution by Root Folder\n"
@@ -155,15 +175,97 @@ def generate_contributor_report(repo_data: dict, contributor: str):
         report += "\nThe folder percentage is calculated based on the total Commits of each contributor that has contributed to the said folder.\n"
 
     if repo_data.get("members_commits"):
-        report += "## Biggest Commits\n"
+        report += "## 5 Biggest Commits\n"
         report += "| Commit | Message | Lines Added | Lines Deleted |\n"
         report += "|--------|---------|-------------|---------------|\n"
-        for commit in repo_data["members_commits"].get(contributor, [])[:30]:
+        for commit in repo_data["members_commits"].get(contributor, [])[:5]:
             commit["message"] = commit["message"].replace("\n", "")
             report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['message']} | +{commit['lines_added']} | -{commit['lines_deleted']} |\n"
         report += "\n"
 
     return report
+
+
+def generate_contributor_report_for_combined(repo_data: dict, contributor: str):
+    """
+    Generate a detailed Markdown report for a specific contributor (for combined report).
+    This version doesn't include the back link since it's part of the combined document.
+    """
+    loc_data = repo_data["loc_data"]
+    final_loc_data = loc_data.get("Final LOC", {}).get("data", {}).get(contributor, {})
+
+    report = f"# {contributor} Contribution Report\n"
+
+    if final_loc_data:
+        # Add per root folder contribution
+        report += "### Contribution by Root Folder\n"
+        per_folder_data = loc_data["Root Folder LOC"].get(contributor, {})
+        report += "| Folder | Commits | Percent |\n"
+        report += "|--------|---------|---------|\n"
+        for folder, data in per_folder_data.items():
+            commits = data.get("contributions", "N/A")
+            total_folder_commits = data.get("total_commits", "N/A")
+            percent = data.get("percentage", None)
+            percent = f"{percent:.2f}" if percent is not None else "N/A"
+            report += (
+                f"| {folder} | **{commits}** / {total_folder_commits} | {percent}% |\n"
+            )
+        report += "\nThe folder percentage is calculated based on the total Commits of each contributor that has contributed to the said folder.\n"
+
+    if repo_data.get("members_commits"):
+        report += "## 5 Biggest Commits\n"
+        report += "| Commit | Message | Lines Added | Lines Deleted |\n"
+        report += "|--------|---------|-------------|---------------|\n"
+        for commit in repo_data["members_commits"].get(contributor, [])[:5]:
+            commit["message"] = commit["message"].replace("\n", "")
+            report += f"| [{commit['commit'][:5]}]({commit['link']}) | {commit['message']} | +{commit['lines_added']} | -{commit['lines_deleted']} |\n"
+        report += "\n"
+
+    return report
+
+
+def generate_combined_md_report(
+    repository_name: str,
+    repository_data: dict,
+    account_mapping: dict,
+    output_dir: str,
+    timeline_relative_path: str | None = None,
+    contribution_relative_path: str | None = None,
+):
+    """
+    Generate a combined Markdown report with the project report and all contributor reports,
+    separated by HTML page breaks for PDF conversion.
+    """
+    PAGE_BREAK = '\n<div style="page-break-after: always;"></div>\n\n'
+
+    # Generate the main project report
+    combined_report = generate_md_report_text(
+        repository_data,
+        account_mapping,
+        timeline_relative_path,
+        contribution_relative_path,
+    )
+
+    # Get contributors
+    contributors = repository_data["loc_data"].get("Final LOC", {}).get("data", {})
+
+    if contributors:
+        for contributor in contributors:
+            # Add page break before each contributor report
+            combined_report += PAGE_BREAK
+            contributor_report = generate_contributor_report_for_combined(
+                repository_data, contributor
+            )
+            if contributor_report:
+                combined_report += contributor_report
+
+    # Write the combined report
+    output_file = os.path.join(output_dir, f"{repository_name}_full_report.md")
+    with open(output_file, "w") as file:
+        file.write(combined_report)
+
+    print(f" - Combined report generated: {repository_name}_full_report.md")
+    return output_file
 
 
 def generate_md_report(
@@ -172,10 +274,55 @@ def generate_md_report(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    report = generate_md_report_text(repository_data, account_mapping)
+    # Generate timeline image
+    timeline_image_name = f"{repository_name}_timeline.png"
+    timeline_image_path = os.path.join(output_dir, timeline_image_name)
+    timeline_relative_path = None
+
+    try:
+        result = generate_commit_timeline(
+            repository_data, account_mapping, timeline_image_path
+        )
+        if result:
+            timeline_relative_path = f"./{timeline_image_name}"
+            print(f" - Timeline image generated: {timeline_image_name}")
+    except Exception as e:
+        print(f" - Warning: Could not generate timeline image: {e}")
+
+    # Generate contribution summary image
+    contribution_image_name = f"{repository_name}_contributions.png"
+    contribution_image_path = os.path.join(output_dir, contribution_image_name)
+    contribution_relative_path = None
+
+    try:
+        result = generate_contribution_summary(
+            repository_data, account_mapping, contribution_image_path
+        )
+        if result:
+            contribution_relative_path = f"./{contribution_image_name}"
+            print(f" - Contribution summary generated: {contribution_image_name}")
+    except Exception as e:
+        print(f" - Warning: Could not generate contribution summary: {e}")
+
+    report = generate_md_report_text(
+        repository_data,
+        account_mapping,
+        timeline_relative_path,
+        contribution_relative_path,
+    )
     output_file = os.path.join(output_dir, f"{repository_name}_report.md")
     with open(output_file, "w") as file:
         file.write(report)
+
+    # Generate combined report (project + all contributors with page breaks)
+    generate_combined_md_report(
+        repository_name,
+        repository_data,
+        account_mapping,
+        output_dir,
+        timeline_relative_path,
+        contribution_relative_path,
+    )
 
     contributors = repository_data["loc_data"].get("Final LOC", {}).get("data", {})
     if contributors:
